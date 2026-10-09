@@ -1,6 +1,6 @@
 ---
 name: newsletter-to-playlist
-description: Convert a music newsletter or venue agenda (URL or pasted text) into a Spotify playlist. Reads the source, extracts artists, finds recent and older tracks per artist (2 + 2 by default, configurable) via spotify_cli, and creates a private playlist with a descriptive name.
+description: Convert a music newsletter or venue agenda (URL or pasted text) into a Spotify playlist. Reads the source, extracts artists, finds recent and older tracks per artist (2 + 2 by default, configurable) via spotify_cli, and creates a private or public playlist (the user chooses) with a descriptive name.
 ---
 
 # Newsletter → Playlist
@@ -16,6 +16,16 @@ Two settings control how many tracks each artist gets:
 - `older` = number of tracks from older albums (default **2**)
 
 If the user states a preference ("3 tracks per artist", "only the newest song", "5 recent and 1 older"), use it. A total like "3 per artist" means `recent` = 2 and `older` = 1 (recent gets the extra one when the total is odd). If the user says nothing, use the defaults and do not ask. Each setting can be 0 to 5. If the user asks for more, use 5 and say so. A setting of 0 skips that group. Mention the values used in the final report.
+
+## Visibility (private or public)
+
+The playlist is either **private** or **public**.
+- If the user says which ("public playlist", "keep it private", "share it"), use that.
+- If the request does not say, **ask once, before searching**, so the rest of the run needs no further questions: "Should the playlist be private (only you) or public (visible on your profile)?" Use the question or choice tool your agent offers, or a plain question in the chat.
+- If you cannot ask (no way to get an answer, or an unattended run), or the user does not answer, use **private**.
+- Never make a playlist public on your own. Never change the visibility of an existing playlist.
+
+Mention the visibility in the final report. It can be changed later in Spotify or with `"$SPOTIFY_CLI_PATH" playlist update <playlist_uri> --public` or `--private`.
 
 ## Folder (optional)
 
@@ -145,18 +155,20 @@ Write with `library batch`: one CLI call runs several operations in order, and t
 
 **Batch 1:** create the playlist (and the folder if needed, see below):
 ```bash
-jq -n --arg n "<name>" '{ops:[{op:"playlist_create", name:$n, public:false}]}' > batch1.json
+jq -n --arg n "<name>" '{ops:[{op:"playlist_create", name:$n}]}' > batch1.json
 "$SPOTIFY_CLI_PATH" library batch --from-file batch1.json --stop-on-error --format json
 ```
-The result line holds the new `spotify:playlist:<id>` in `.result.uri`. The playlist is private. Never set `public` to true. `description` is ignored by `playlist_create` (also in a batch), so set it in batch 2.
+The result line holds the new `spotify:playlist:<id>` in `.result.uri`. New playlists are always created **private**: `playlist_create` ignores both `description` and `public` (tested with `public: true` in a batch and with `playlist create --public`; the playlist stayed private). Set the description and the visibility in batch 2 with `playlist_update`.
 
-**Batch 2:** description, tracks and (optionally) the folder move:
+**Batch 2:** description, visibility, tracks and (optionally) the folder move:
 ```bash
-jq -n --arg p "<playlist_uri>" --arg d "<one sentence about the source, in the language of the playlist name>" --slurpfile t tracks.json \
-  '{ops:[{op:"playlist_update", playlist_uri:$p, description:$d},
-         {op:"playlist_add", playlist_uri:$p, track_uris:$t[0]}]}' > batch2.json
+jq -n --arg p "<playlist_uri>" --arg d "<one sentence about the source, in the language of the playlist name>" --argjson pub false --slurpfile t tracks.json \
+  '{ops:[{op:"playlist_add", playlist_uri:$p, track_uris:$t[0]},
+         {op:"playlist_update", playlist_uri:$p, description:$d, public:$pub}]}' > batch2.json
 "$SPOTIFY_CLI_PATH" library batch --from-file batch2.json --stop-on-error --format json
 ```
+Pass `--argjson pub true` only if the user chose public (see Visibility), otherwise `false`. Description and visibility work together in one `playlist_update`. The update comes after the add on purpose: with `--stop-on-error`, a failed add means the playlist is never made public.
+
 `tracks.json` is a JSON array of the deduped `spotify:track:*` URIs in source order (by artist appearance in the newsletter). One `playlist_add` took 11 tracks in a test, so a single operation is fine; split into chunks of 50 for large lists.
 
 `playlist_add` does not reject duplicates, so dedupe the URI list yourself first. An invalid URI fails with the misleading error `client connection failed` (the summary then reports the later operations as skipped). If you see that, check the URIs before assuming the Spotify app is down (`"$SPOTIFY_CLI_PATH" status` shows whether it is running).
@@ -172,7 +184,7 @@ If an operation fails, stop. Do not retry blindly. Report the playlist link, whi
 - Add `{op:"folder_move", uris:[$p], destination_folder_uri:$folder_uri}` to batch 2. To check, `folder list --folder <folder_uri> --format json` lists the folder's direct contents.
 - If the folder step fails, keep the playlist where it is and say so in the report.
 
-**Fallback without batch:** `playlist create "<name>"` prints plain text (`Created: <name>  spotify:playlist:<id>`; take the URI with `spotify:playlist:[A-Za-z0-9]+`), then `playlist update <uri> --description "…"`, `playlist add <uri> <track_uri>…` and `folder move <uri> --to <folder_uri>`. Quote every argument and apply the Shell safety rules from step 3 to the name, description and folder.
+**Fallback without batch:** `playlist create "<name>"` prints plain text (`Created: <name>  spotify:playlist:<id>`; take the URI with `spotify:playlist:[A-Za-z0-9]+`), then `playlist update <uri> --description "…"`, `playlist add <uri> <track_uri>…` and `folder move <uri> --to <folder_uri>`. If the user chose public, run `playlist update <uri> --public` after creating it (`playlist create --public` is ignored). Quote every argument and apply the Shell safety rules from step 3 to the name, description and folder.
 
 ### 6. Verify
 
@@ -217,6 +229,7 @@ End with a clickable link to the playlist, on its own line: `https://open.spotif
 - **Skip artists not on Spotify** during track search without interrupting the user, and list them in the final report
 - **Never print tokens or credentials** if CLI output or errors contain them
 - **Do not auto-play** the playlist after creation
+- **Private is the default.** Playlists are created private; make one public only if the user chose it, and only with `playlist_update` / `playlist update --public`
 - **Never run `folder remove`** (it deletes the folder's contents by default) and never move or rename folders or playlists the skill did not create
 - **Keep `recent` + `older` small for large agendas** — with the defaults (4 per artist) the playlist stays varied. If the total would exceed 200 tracks, tell the user and ask whether to lower the settings
 - If the newsletter URL is an email tracking or redirect link (for example `e.example.com/ct/...`), that's fine — just open the URL the user gave

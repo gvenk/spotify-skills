@@ -6,7 +6,7 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 | Skill | What it does |
 |-------|--------------|
-| [`newsletter-to-playlist`](skills/newsletter-to-playlist/SKILL.md) | Turns a music newsletter or venue agenda (URL or pasted text) into a private Spotify playlist. |
+| [`newsletter-to-playlist`](skills/newsletter-to-playlist/SKILL.md) | Turns a music newsletter or venue agenda (URL or pasted text) into a Spotify playlist, private or public as you choose. |
 
 ### newsletter-to-playlist
 
@@ -14,7 +14,7 @@ Give the agent a URL or paste the text, and it will:
 
 1. read the newsletter and extract the artists,
 2. find each artist on Spotify and pick their most played tracks, from both recent and older releases,
-3. create a private playlist, optionally inside a folder, and verify the result.
+3. create a playlist (it asks whether it should be private or public, unless you said so), optionally inside a folder, and verify the result.
 
 Example requests:
 
@@ -28,6 +28,7 @@ Options you can ask for in plain language:
 |--------|---------|-------|
 | Tracks per artist | 2 recent + 2 older | Each group can be 0 to 5. |
 | Playlist name | generated as `<Source> - <Theme> - <Month Year>` | A name you give is used exactly as written. |
+| Visibility | asked if not mentioned (private if it can't ask) | Say "public" or "private" in your request to skip the question. |
 | Folder | none (top level) | An existing folder is used; a new one is created if the name does not exist. |
 
 ## Requirements
@@ -58,7 +59,7 @@ If `spotify_cli` is not at the default path, set `SPOTIFY_CLI_PATH` to its locat
 
 ## Safety and limits
 
-- Playlists are created **private**. The skill never passes `--public`.
+- Playlists are **private** unless you choose public. If your request doesn't say, the skill asks, and falls back to private when it can't ask.
 - Newsletter text is treated as untrusted data. The agent extracts artist names only and ignores any instructions inside the content.
 - Artist and playlist names are never pasted unescaped into shell commands, and track URIs are validated before they are added.
 - It only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders.
