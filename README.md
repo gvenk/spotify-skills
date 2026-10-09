@@ -57,9 +57,25 @@ Options you can ask for in plain language:
 
 The skills were written and tested on macOS only.
 
+## Which tools can use it
+
+The skill runs `spotify_cli` on your own computer, so it needs an AI tool that can **load a `SKILL.md` skill** and **run commands on your machine** (a local shell). That covers command line tools, their desktop apps and IDE extensions, as long as they run locally:
+
+| Tool | Works? | Notes |
+|------|--------|-------|
+| Claude Code (terminal, desktop app, IDE) | Yes | Tested. |
+| Codex | Yes | Tested. If your Codex setup blocks the command, allow it to run `spotify_cli`. |
+| Gemini CLI | Should work | Not tested. |
+| Other tools that support `SKILL.md` skills and run local commands | Probably | Check their documentation for the skills folder. |
+| The Claude chat app (claude.ai, desktop chat) | **No** | Skills there run in a remote sandbox with no access to your Spotify app. |
+
+If a tool cannot run commands on your computer, the skill cannot control Spotify.
+
 ## Install
 
-Copy the skill folder into your agent's skills directory. For Claude Code:
+Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
+
+**Claude Code**
 
 ```bash
 # for all your projects
@@ -69,9 +85,54 @@ cp -R skills/text-to-playlist ~/.claude/skills/
 cp -R skills/text-to-playlist <your-project>/.claude/skills/
 ```
 
-Other agents have their own skill or instruction locations. See their documentation.
+**Codex** ([documentation](https://learn.chatgpt.com/docs/build-skills))
 
-If `spotify_cli` is not at the default path, set `SPOTIFY_CLI_PATH` to its location before starting the agent.
+```bash
+# the skills folder is $CODEX_HOME/skills, usually ~/.codex/skills
+cp -R skills/text-to-playlist ~/.codex/skills/
+```
+
+You can also run `$skill-installer` inside a Codex session. Restart Codex if it does not see the new skill.
+
+**Gemini CLI** ([documentation](https://geminicli.com/docs/cli/skills/))
+
+```bash
+# install from a local folder
+gemini skills install ./skills/text-to-playlist
+
+# or copy it by hand
+cp -R skills/text-to-playlist ~/.gemini/skills/
+```
+
+Check that it loaded with `/skills list` in a session. Add `--scope workspace` to install it for one project only.
+
+**Other tools.** Skills in the `SKILL.md` format are also supported by other tools, each with its own folder. Look up "agent skills" in the tool's documentation and copy the `text-to-playlist` folder there.
+
+The commands above follow each tool's documentation and the current layout of its skills folder, which can change. Claude Code and Codex have been tested with this repository. Gemini CLI has not.
+
+If `spotify_cli` is not at the default path, set `SPOTIFY_CLI_PATH` to its location before starting the tool.
+
+## Calling the skill
+
+There are two ways to call the skill. The second works in every tool.
+
+**1. Name it.** Most tools let you call a skill by name, followed by your request:
+
+| Tool | How to call it | Example |
+|------|----------------|---------|
+| Claude Code | `/text-to-playlist` | `/text-to-playlist https://example.com/agenda, public` |
+| Codex (CLI and IDE extension) | `$text-to-playlist`, or type `$` or `/skills` to pick it from a list | `$text-to-playlist https://example.com/agenda, public` |
+| Gemini CLI | no name syntax; the model picks the skill itself (see below) | |
+
+**2. Just ask.** The tool picks the skill by its description, so a normal request is enough, in any language:
+
+- "Make a playlist from this newsletter: https://example.com/agenda"
+- "Turn this line-up into a Spotify playlist, 3 tracks per artist, hidden gems, shuffled"
+- Paste the text and say "playlist from this, private"
+
+In Gemini CLI the model activates the skill when your request matches its description and asks for your confirmation before it loads. In Codex a skill can also be set to run only when named (`allow_implicit_invocation: false`). If a tool does not pick up your request, name the skill.
+
+Put the options in the same message ("public", "shuffled", "deep cuts", "3 per artist", "call it Summer concerts", "in my Newsletters folder"), or leave them out and the skill asks only what it needs. Call the skill without a URL or text, or ask for help, and it shows a short help message with examples.
 
 ## Safety and limits
 
