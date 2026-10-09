@@ -8,6 +8,8 @@ A product of [Million Pieces](https://millionpieces.nl).
 
 ## Skills
 
+This repository currently contains **one skill**. More may follow.
+
 | Skill | What it does |
 |-------|--------------|
 | [`text-to-playlist`](skills/text-to-playlist/SKILL.md) | Turns any text that mentions artists (newsletter, agenda, festival line-up, article, review; URL or pasted text) into a Spotify playlist, private or public as you choose. |
@@ -74,6 +76,8 @@ The skill runs `spotify_cli` on your own computer, so it needs an AI tool that c
 If a tool cannot run commands on your computer, the skill cannot control Spotify.
 
 ## Install
+
+**Download.** Get the repository as a zip: [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip). Unzip it; the skill is the folder `skills/text-to-playlist` inside (the zip's top folder is called `spotify-skills-main`). Or clone the repository with git. Tagged versions, each with a small zip that holds only the skill folder, are listed on the [releases page](https://github.com/gvenk/spotify-skills/releases).
 
 Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
 
@@ -152,7 +156,9 @@ skills/
   text-to-playlist/
     SKILL.md
 README.md
+RELEASING.md
 LICENSE
+.gitignore
 ```
 
 ## Questions, bugs and improvements
@@ -161,6 +167,10 @@ LICENSE
 - **Bugs:** open an issue at [github.com/gvenk/spotify-skills/issues](https://github.com/gvenk/spotify-skills/issues). Say which tool and OS you use, what you asked, and what happened.
 - **Improvement ideas:** open an issue at the same page and describe what you would like the skill to do.
 <!-- When the repository moves to the company GitHub, update the two issue links above (and the repository URL) to the new address. -->
+
+## For maintainers
+
+How to publish a release: see [RELEASING.md](RELEASING.md).
 
 ## License
 
