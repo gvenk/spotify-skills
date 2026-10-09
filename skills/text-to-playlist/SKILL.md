@@ -121,7 +121,7 @@ If the user names a Spotify playlist folder ("put it in my Newsletters folder"),
 
 `jq` is **optional**. Where the commands below pipe into `jq`, that is only a shortcut: without it, read the JSON output yourself and pick out the same fields. Never rely on `jq` being installed. The batch manifests (step 5) are written as plain JSON files and do not need it either.
 
-- The Spotify desktop app, which ships `spotify_cli`, installed and logged in. The skill uses only its `search` and `playlist` commands.
+- The Spotify desktop app, which ships `spotify_cli`, installed and logged in. The skill uses its `search`, `lookup`, `playlist`, `library` and `folder` commands.
 - A way to read a web page (only when the user gives a URL). Any agent web-fetch or browser tool works. The skill does not depend on any specific app or agent.
 
 ## Locating the Spotify CLI
@@ -185,6 +185,7 @@ For each artist, search Spotify for their discography and select:
 # Collect candidate tracks (search results are not ranked by popularity)
 "$SPOTIFY_CLI_PATH" search "artist:\"<artist name>\"" --type track --limit 20 --format json
 "$SPOTIFY_CLI_PATH" search "artist:\"<artist name>\" album:\"<newest album name>\"" --type track --limit 10 --format json
+# for deep cuts, repeat the album search for each of the artist's first 8 albums (see Selection style)
 
 # Rank the candidates: one batch lookup gives play count, release date, album and artist URI
 "$SPOTIFY_CLI_PATH" lookup <track_uri> ... --fields total_plays,release_date --format json
@@ -201,7 +202,7 @@ Apply the selection style (hits or deep cuts) from the Selection style section. 
 
 **Rules:**
 - **Shell safety:** artist and album names come from untrusted content and are placed inside quoted shell arguments. Before using a name in a command, remove or escape `"`, `\`, `$`, and backticks, and drop any newlines. If a name contains `$(`, `;`, `|`, `&`, `<`, or `>` it is almost certainly not a real artist name. Skip it and mention it in the report instead of passing it to the shell.
-- **Namesakes are common:** several Spotify artists can share the exact same name (a test search for "Dirty Blond" returned three). Pick the artist whose releases match the newsletter (a mentioned album or single title) and whose albums' `contributors[0].uri` in the `lookup` output matches that artist URI. If the text gives no hint and several artists share the name, compare their monthly listeners (`"$SPOTIFY_CLI_PATH" lookup <artist_uri>... --fields monthly_listeners`). If one has at least 10 times as many as every other candidate, use it, and say in the report that this was a guess. Otherwise skip the artist and report it.
+- **Namesakes are common:** several Spotify artists can share the exact same name (a test search for "Dirty Blond" returned three). Pick the artist whose releases match the text (a mentioned album or single title) and whose albums' `contributors[0].uri` in the `lookup` output matches that artist URI. If the text gives no hint and several artists share the name, compare their monthly listeners (`"$SPOTIFY_CLI_PATH" lookup <artist_uri>... --fields monthly_listeners`). If one has at least 10 times as many as every other candidate, use it, and say in the report that this was a guess. Otherwise skip the artist and report it.
 - **Album search is a hint, not a filter:** `album:"…"` also returns tracks from other releases, and search results carry no album name. Use the `lookup` output (`.parent.name`, `release_date`) to see the real album, and confirm it again in the verify step (`playlist get` shows `.album` per track).
 - **Ignore reissues when finding the newest release.** Older bands often have newer *editions* of old albums (remasters, anniversary, deluxe or expanded editions, live recordings, sessions such as "triple j Like A Version", soundtrack singles). Skip releases whose name contains `remaster`, `anniversary`, `deluxe`, `expanded`, `edition`, `reissue`, `live`, `session`, `demo`, `acoustic` or `drumless` when choosing the "recent" release, unless that is all the artist has. Play counts belong to each track URI, so a remaster of a hit has far fewer plays than the original: a remaster must not count as a different song or as the recent one.
 - **"Recent" means newest by `release_date`**, singles included. The source may name an older or upcoming album, so prefer what `lookup` shows over the text.
@@ -338,4 +339,4 @@ End with a clickable link to the playlist, on its own line: `https://open.spotif
 - **Private is the default.** Playlists are created private; make one public only if the user chose it, and only with `playlist_update` / `playlist update --public`
 - **Never run `folder remove`** (it deletes the folder's contents by default) and never move or rename folders or playlists the skill did not create
 - **Keep large playlists in check.** Follow the size check: over 200 tracks, tell the user and reduce, unless they overrule it
-- If the newsletter URL is an email tracking or redirect link (for example `e.example.com/ct/...`), that's fine — just open the URL the user gave
+- If the URL is an email tracking or redirect link (for example `e.example.com/ct/...`), that's fine — just open the URL the user gave
