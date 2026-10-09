@@ -155,6 +155,12 @@ README.md
 LICENSE
 ```
 
+## Questions, bugs and improvements
+
+- **Questions and remarks:** email [gvenk@millionpieces.nl](mailto:gvenk@millionpieces.nl).
+- **Bugs and improvement ideas:** use the issue tracker of the GitHub repository. The link will follow once the repository is on GitHub.
+<!-- TODO: replace the sentence above with the links to the GitHub issues page (bugs) and discussions or issues (improvements) when the repository URL is known. -->
+
 ## License
 
 [MIT](LICENSE)
