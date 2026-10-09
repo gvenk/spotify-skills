@@ -161,7 +161,7 @@ jq -n --arg p "<playlist_uri>" --arg d "<one sentence about the source, in the l
 
 `playlist_add` does not reject duplicates, so dedupe the URI list yourself first. An invalid URI fails with the misleading error `client connection failed` (the summary then reports the later operations as skipped). If you see that, check the URIs before assuming the Spotify app is down (`"$SPOTIFY_CLI_PATH" status` shows whether it is running).
 
-If an operation fails, stop. Do not retry blindly. Report the playlist URI, which operations succeeded and which did not.
+If an operation fails, stop. Do not retry blindly. Report the playlist link, which operations succeeded and which did not.
 
 **Move to a folder (only if the user named one).** Look the folder up by exact, case-insensitive name. Use `--recursive`, otherwise `folder list` and `library list` only show top-level folders and miss nested ones:
 ```bash
@@ -199,7 +199,7 @@ Tell the user:
 - Which artists are included
 - Which artists were **not found on Spotify** (and why, briefly)
 
-Finally, give the playlist URI (`spotify:playlist:<id>`) so the user can open it in Spotify.
+End with a clickable link to the playlist, on its own line: `https://open.spotify.com/playlist/<id>`, where `<id>` is the part after `spotify:playlist:` in the playlist URI. Terminals and chat apps make this link clickable, which a `spotify:` URI usually is not. You may add the URI itself after the link. Do not open or play the playlist for the user.
 
 ## Naming patterns
 
