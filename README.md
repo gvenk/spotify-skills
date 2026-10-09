@@ -2,6 +2,8 @@
 
 Agent skills that work with the Spotify desktop app through its command line tool, `spotify_cli`. They are meant for AI coding agents that can run shell commands and load `SKILL.md` skills (such as Claude Code). They only work on a machine where Spotify is installed.
 
+A product of [Million Pieces](https://millionpieces.nl).
+
 ## Skills
 
 | Skill | What it does |
