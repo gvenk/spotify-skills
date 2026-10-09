@@ -162,6 +162,13 @@ From the page content, extract every **musical artist or band** mentioned. For e
 
 Exclude non-artist names (venue staff, journalists, sponsors, festival names).
 
+**Clean up the credit before you search.** Texts write artist names in ways Spotify does not:
+- **Generic labels.** Drop `Soundtrack /`, `OST`, `Original Cast`, `Various Artists` and similar, and use the named person or band (a chart's "Soundtrack / Hans Zimmer" is "Hans Zimmer"). If only a generic label remains, search by the album or song title instead.
+- **"The".** Charts often drop or add a leading "The" ("Rolling Stones" is "The Rolling Stones" on Spotify). If an exact name finds nothing, retry once with "The " added or removed.
+- **Tags.** Remove country or disambiguation tags such as `[US]` or `(NL)`.
+- **Several names.** For "A feat. B", "A / B" or "A & B", see the credit rules under Named songs.
+Keep the original wording for the report, so the user can see what was changed. Only change a credit when the exact name finds nothing, and count it as a guess if the result is not clearly the same artist.
+
 Only include artists the text is actually about: the line-up, the performers, the artists being reviewed or recommended. Leave out artists mentioned only as history or comparison (for example "past editions featured Blur and Slowdive", "sounds like Radiohead"), unless the user asks for them. If the text separates a line-up from other names, use the line-up. If you are unsure, mention the exclusion in the report.
 
 If a mentioned artist clearly cannot be found on Spotify after one search attempt, skip them and list them in the final report.
