@@ -14,8 +14,17 @@ Trigger phrases (in any language): "text to playlist", "make a playlist from thi
 Two settings control how many tracks each artist gets:
 - `recent` = number of tracks from the newest releases (default **2**)
 - `older` = number of tracks from older albums (default **2**)
+- `per_album` = number of tracks per album, for texts that list albums (default **2**)
 
 If the user states a preference ("3 tracks per artist", "only the newest song", "5 recent and 1 older"), use it. A total like "3 per artist" means `recent` = 2 and `older` = 1 (recent gets the extra one when the total is odd). If the user says nothing, use the defaults and do not ask. Each setting can be 0 to 5. If the user asks for more, use 5 and say so. A setting of 0 skips that group. Mention the values used in the final report.
+
+## Size check (many tracks)
+
+Before searching, estimate the total: artists × (`recent` + `older`), or albums × `per_album`, or the number of named songs. The limit is **200 tracks**.
+- If the estimate is 200 or less, use the settings as they are (default **2** per artist group or album).
+- If it is more, **tell the user before you start**: how many tracks the settings would give, what you will use instead so that it fits, and that they can overrule it. Use the smallest reduction that fits: first one track per album (or `recent` 1 + `older` 1 per artist), then only one track per artist. Example: "This chart has 150 albums, so 2 per album would be about 300 tracks. I'll use 1 per album (about 150). Tell me if you want 2 per album anyway."
+- If the user overrules it (any number they ask for, also above 200), use theirs. If you cannot ask, or the user does not answer, use the reduced number.
+- State the final numbers in the report.
 
 ## Named songs
 
@@ -24,6 +33,13 @@ Some texts pair artists with specific songs: a list of winners, a setlist, a tra
 - If the text names songs and the request does not say, ask once, together with the visibility question: "The text names specific songs. Add exactly those songs, or the usual top tracks per artist?"
 - If you cannot ask, use the usual top tracks per artist.
 - In named-songs mode, find each song with `"$SPOTIFY_CLI_PATH" search 'artist:"<artist>" track:"<title>"' --type track --limit 5 --format json`. Keep results whose `artists` contain the artist and whose title matches (ignoring suffixes like "- Remastered"). Several copies of one song are normal (album, single, remaster). Use `lookup --fields total_plays` and take the most played one. Skip songs that cannot be found and list them in the report. Keep the order of the text.
+
+**Texts that list albums** (an album chart, a best-albums list, a release overview) are a variant. Ask once, with the other questions: "The text lists albums. Add the most played tracks of each album, or the usual top tracks per artist?" If you cannot ask, add the most played tracks of each album. The setting `per_album` is the number of tracks per album (default **2**). For tracks per album:
+- Search `artist:\"<artist>\" album:\"<album>\"` as tracks (limit 20) and `lookup --fields total_plays`. Each result's `parent.name` is its album.
+- Match the album on its **base name**: lower case, accents removed, and without a trailing `[...]` or `(...)` such as `[30th Anniversary Edition]` or `[Special Edition]`. A chart's "Rubber Soul [Special Edition]" is "Rubber Soul (Remastered 2009)" on Spotify. The track's first contributor must also be the artist.
+- Take the `per_album` most played tracks of the album, any edition. Skip live, remix, instrumental and demo versions unless the album is one.
+- This mode does not use the 40-artist cap, but the size check below applies. Keep the order of the text.
+- If an album cannot be matched, skip it and list it in the report. Two albums that give the same song (a studio album and its greatest hits) count once, and the next most played track takes its place.
 
 ## Visibility (private or public)
 
@@ -259,5 +275,5 @@ End with a clickable link to the playlist, on its own line: `https://open.spotif
 - **Do not auto-play** the playlist after creation
 - **Private is the default.** Playlists are created private; make one public only if the user chose it, and only with `playlist_update` / `playlist update --public`
 - **Never run `folder remove`** (it deletes the folder's contents by default) and never move or rename folders or playlists the skill did not create
-- **Keep `recent` + `older` small for large agendas** — with the defaults (4 per artist) the playlist stays varied. If the total would exceed 200 tracks, tell the user and ask whether to lower the settings
+- **Keep large playlists in check.** Follow the size check: over 200 tracks, tell the user and reduce, unless they overrule it
 - If the newsletter URL is an email tracking or redirect link (for example `e.example.com/ct/...`), that's fine — just open the URL the user gave

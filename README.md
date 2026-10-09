@@ -35,7 +35,7 @@ Options you can ask for in plain language:
 
 **Same-name artists.** Spotify can have several artists with the same name. The skill picks the one whose releases match the text. If the text gives no hint, it takes an artist only when they have at least 10 times the monthly listeners of every other match, and says in its report that this was a guess. Otherwise it skips the artist and lists them in the report.
 
-**Large texts.** More than 40 artists, or more than 200 tracks in total, makes the skill ask before it continues.
+**Large texts.** More than 40 artists makes the skill ask before it continues. If the settings would give more than 200 tracks, it tells you up front and uses fewer (for example 1 track per album instead of 2) to stay under 200. You can overrule that by saying how many you want.
 
 ## Requirements
 
