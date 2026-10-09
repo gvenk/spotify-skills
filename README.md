@@ -73,3 +73,7 @@ skills/
     SKILL.md
 README.md
 ```
+
+## License
+
+[MIT](LICENSE)
