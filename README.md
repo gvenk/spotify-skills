@@ -13,7 +13,7 @@ Agent skills that work with the Spotify desktop app through its command line too
 Give the agent a URL or paste the text, and it will:
 
 1. read the text and extract the artists the text is about (artists mentioned only as history or comparison, such as acts from past editions, are left out),
-2. find each artist on Spotify and pick their most played tracks, from both recent and older releases (reissues and remasters don't count as "recent"),
+2. find each artist on Spotify and pick tracks from both recent and older releases: the most played ones by default, or lesser-known "deep cuts" if you ask (reissues and remasters don't count as "recent"),
 3. create a playlist (it asks whether it should be private or public, unless you said so), optionally inside a folder, and verify the result.
 
 Example requests:
@@ -23,18 +23,23 @@ Example requests:
 - "Playlist from this agenda, put it in my *Newsletters* folder"
 - "Make a playlist with exactly the songs in this list of winners" (see *Named songs* below)
 - "Playlist from this line-up, shuffled"
+- "Make a public playlist with the hidden gems of the artists in this review"
+- "Playlist from this album chart, 2 deep cuts per album" (see *Album lists* below)
+- "Playlist from this top 100, 1 track per album, in the order of the chart"
 
 Options you can ask for in plain language:
 
 | Option | Default | Notes |
 |--------|---------|-------|
-| Tracks per artist | 2 recent + 2 older | Each group can be 0 to 5. |
+| Tracks per artist | 2 recent + 2 older | Each group can be 0 to 5. "3 per artist" means 2 recent + 1 older. |
+| Tracks per album | 2 | For texts that list albums (see *Album lists*). 0 to 5. |
 | Playlist name | generated as `<Source> - <Theme> - <Month Year>` | A name you give is used exactly as written. |
 | Selection style | hits (most played) | Say "deep cuts", "hidden gems" or "not just the hits" for less common songs, or "mix" for one hit and one deep cut per group. Doesn't apply to named songs. |
 | Track order | in the order of the text | Say "shuffled" or "random order" to mix the tracks. This sets the order of the tracks in the playlist, not playback shuffle in Spotify. |
 | Visibility | asked if not mentioned (private if it can't ask) | Say "public" or "private" in your request to skip the question. |
 | Folder | none (top level) | An existing folder is used; a new one is created if the name does not exist. |
-| Named songs | asked if the text names songs | If the text pairs artists with specific songs (winners, setlist, tracklist), you can get exactly those songs instead of each artist's top tracks. |
+| Named songs | asked if the text names songs | If the text pairs artists with specific songs (winners, setlist, tracklist, a single chart), you can get exactly those songs instead of each artist's top tracks. |
+| Album lists | asked if the text lists albums | For an album chart or best-albums list, you can get tracks from each listed album (the most played, or deep cuts) instead of the artist's top tracks. |
 
 **Same-name artists.** Spotify can have several artists with the same name. The skill picks the one whose releases match the text. If the text gives no hint, it takes an artist only when they have at least 10 times the monthly listeners of every other match, and says in its report that this was a guess. Otherwise it skips the artist and lists them in the report.
 
