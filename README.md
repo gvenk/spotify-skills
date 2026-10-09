@@ -36,7 +36,7 @@ Options you can ask for in plain language:
 - The **Spotify desktop app**, installed and logged in. It ships `spotify_cli`:
   - macOS: `/Applications/Spotify.app/Contents/MacOS/spotify_cli`
   - Windows: `spotify_cli.exe`, expected on the `PATH` (**untested**)
-- A shell, and [`jq`](https://jqlang.github.io/jq/).
+- A shell. [`jq`](https://jqlang.github.io/jq/) is optional (the skill only uses it for shortcuts).
 - A way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 
 The skills were written and tested on macOS only.

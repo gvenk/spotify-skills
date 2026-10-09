@@ -33,6 +33,8 @@ If the user names a Spotify playlist folder ("put it in my Newsletters folder"),
 
 ## Requirements
 
+`jq` is **optional**. Where the commands below pipe into `jq`, that is only a shortcut: without it, read the JSON output yourself and pick out the same fields. Never rely on `jq` being installed. The batch manifests (step 5) are written as plain JSON files and do not need it either.
+
 - The Spotify desktop app, which ships `spotify_cli`, installed and logged in. The skill uses only its `search` and `playlist` commands.
 - A way to read a web page (only when the user gives a URL). Any agent web-fetch or browser tool works. The skill does not depend on any specific app or agent.
 
@@ -97,8 +99,9 @@ For each artist, search Spotify for their discography and select:
 "$SPOTIFY_CLI_PATH" search "artist:\"<artist name>\" album:\"<newest album name>\"" --type track --limit 10 --format json
 
 # Rank the candidates: one batch lookup gives play count, release date, album and artist URI
-"$SPOTIFY_CLI_PATH" lookup <track_uri> ... --fields total_plays,release_date --format json \
-  | jq -r '.entities[] | [((.metadata[]|select(.field=="total_plays").value)//"0"), ((.metadata[]|select(.field=="release_date").value)//"-"), .parent.name, .contributors[0].uri, .name, .uri] | @tsv'
+"$SPOTIFY_CLI_PATH" lookup <track_uri> ... --fields total_plays,release_date --format json
+# optional jq summary (one line per track: plays, date, album, artist URI, title, URI):
+#   ... | jq -r '.entities[] | [((.metadata[]|select(.field=="total_plays").value)//"0"), ((.metadata[]|select(.field=="release_date").value)//"-"), .parent.name, .contributors[0].uri, .name, .uri] | @tsv'
 ```
 
 **Selecting tracks:** drop candidates whose `contributors[0].uri` is not the chosen artist URI. Then:
@@ -122,7 +125,7 @@ Quote `lookup` URIs as separate arguments (in zsh, store them in an array: `"${u
 
 ### 4. Determine the playlist name
 
-**If the user gives a name, use it exactly as given.** Do not add a date, source or theme to it. Treat it as user input: build the manifest with `jq --arg` (step 5) and never paste it into a shell command unescaped (see Shell safety in step 3). If the user says to name it themselves but gives no name, ask once.
+**If the user gives a name, use it exactly as given.** Do not add a date, source or theme to it. Treat it as user input: put it in the JSON manifest (step 5) and never paste it into a shell command unescaped (see Shell safety in step 3). If the user says to name it themselves but gives no name, ask once.
 
 **If the user gives no name, generate one:**
 ```
@@ -148,28 +151,38 @@ The playlist name has to be unique among the user's playlists. The check in step
 
 First check whether a playlist with the same name already exists. If it does, ask the user whether to add to it, create another, or stop. Do not create duplicates silently.
 ```bash
-"$SPOTIFY_CLI_PATH" library list --type playlist --limit 500 --format json | jq -r --arg n "<name>" '.items[] | select(.name == $n) | .uri'
+"$SPOTIFY_CLI_PATH" library list --type playlist --limit 500 --format json
+# optional jq: ... | jq -r --arg n "<name>" '.items[] | select(.name == $n) | .uri'
 ```
+Compare `.items[].name` with the name (exact match).
 
-Write with `library batch`: one CLI call runs several operations in order, and the names go into a JSON file built with `jq --arg` instead of into shell arguments, so quotes, `$` and backticks in a name cannot break out. Write the manifests to a temporary file, not to the repo. Always pass `--stop-on-error --format json`. The output is one JSON line per operation (`"ok":true/false`) and a final summary line. A later operation cannot refer to a URI created by an earlier one, so use two batches.
+Write with `library batch`: one CLI call runs several operations in order, from a JSON manifest file. **Create the manifest with your file-write tool, not with a shell command** (no `echo`, `printf` or heredoc that contains the name). Then no shell ever sees the name, so quotes, `$` and backticks in it are harmless. Escape the text values as JSON strings: `"` becomes `\"`, `\` becomes `\\`, and a newline or other control character becomes `\n`, `\t` and so on (or removes it). Write the manifests to a temporary file, not to the repo. After writing, check the file is valid JSON if a tool is at hand (`python3 -m json.tool batch1.json` or `jq . batch1.json`). Always run with `--stop-on-error --format json`. The output is one JSON line per operation (`"ok":true/false`) and a final summary line. A later operation cannot refer to a URI created by an earlier one, so use two batches.
 
-**Batch 1:** create the playlist (and the folder if needed, see below):
+**Batch 1:** create the playlist (and the folder if needed, see below). `batch1.json`:
+```json
+{"ops": [{"op": "playlist_create", "name": "<name, JSON-escaped>"}]}
+```
 ```bash
-jq -n --arg n "<name>" '{ops:[{op:"playlist_create", name:$n}]}' > batch1.json
 "$SPOTIFY_CLI_PATH" library batch --from-file batch1.json --stop-on-error --format json
 ```
 The result line holds the new `spotify:playlist:<id>` in `.result.uri`. New playlists are always created **private**: `playlist_create` ignores both `description` and `public` (tested with `public: true` in a batch and with `playlist create --public`; the playlist stayed private). Set the description and the visibility in batch 2 with `playlist_update`.
 
-**Batch 2:** description, visibility, tracks and (optionally) the folder move:
+**Batch 2:** tracks, then description and visibility, and (optionally) the folder move. `batch2.json`:
+```json
+{"ops": [
+  {"op": "playlist_add", "playlist_uri": "spotify:playlist:<id>",
+   "track_uris": ["spotify:track:<id1>", "spotify:track:<id2>"]},
+  {"op": "playlist_update", "playlist_uri": "spotify:playlist:<id>",
+   "description": "<one sentence about the source, in the language of the playlist name, JSON-escaped>",
+   "public": false}
+]}
+```
 ```bash
-jq -n --arg p "<playlist_uri>" --arg d "<one sentence about the source, in the language of the playlist name>" --argjson pub false --slurpfile t tracks.json \
-  '{ops:[{op:"playlist_add", playlist_uri:$p, track_uris:$t[0]},
-         {op:"playlist_update", playlist_uri:$p, description:$d, public:$pub}]}' > batch2.json
 "$SPOTIFY_CLI_PATH" library batch --from-file batch2.json --stop-on-error --format json
 ```
-Pass `--argjson pub true` only if the user chose public (see Visibility), otherwise `false`. Description and visibility work together in one `playlist_update`. The update comes after the add on purpose: with `--stop-on-error`, a failed add means the playlist is never made public.
+Set `"public": true` only if the user chose public (see Visibility). Description and visibility work together in one `playlist_update`. The update comes after the add on purpose: with `--stop-on-error`, a failed add means the playlist is never made public.
 
-`tracks.json` is a JSON array of the deduped `spotify:track:*` URIs in source order (by artist appearance in the newsletter). One `playlist_add` took 11 tracks in a test, so a single operation is fine; split into chunks of 50 for large lists.
+`track_uris` is the deduped list of `spotify:track:*` URIs in source order (by artist appearance in the newsletter). One `playlist_add` took 11 tracks in a test, so a single operation is fine; split into chunks of 50 for large lists.
 
 `playlist_add` does not reject duplicates, so dedupe the URI list yourself first. An invalid URI fails with the misleading error `client connection failed` (the summary then reports the later operations as skipped). If you see that, check the URIs before assuming the Spotify app is down (`"$SPOTIFY_CLI_PATH" status` shows whether it is running).
 
@@ -177,11 +190,13 @@ If an operation fails, stop. Do not retry blindly. Report the playlist link, whi
 
 **Move to a folder (only if the user named one).** Look the folder up by exact, case-insensitive name. Use `--recursive`, otherwise `folder list` and `library list` only show top-level folders and miss nested ones:
 ```bash
-"$SPOTIFY_CLI_PATH" folder list --recursive --format json | jq -r --arg n "<folder>" '.items[] | select(.type=="folder" and (.name|ascii_downcase == ($n|ascii_downcase))) | .uri'
+"$SPOTIFY_CLI_PATH" folder list --recursive --format json
+# optional jq: ... | jq -r --arg n "<folder>" '.items[] | select(.type=="folder" and (.name|ascii_downcase == ($n|ascii_downcase))) | .uri'
 ```
+Look for items with `"type":"folder"` whose `name` matches (ignoring case) and take their `uri`.
 - If it exists, use its `spotify:...:folder:...` URI. If several folders share the name, ask the user which one.
-- If it does not exist, create it (the user asked for it by name) with `{op:"folder_create", name:$f}` in batch 1. The result line holds the folder URI in `.result`; if it is not there, look the folder up again with the command above.
-- Add `{op:"folder_move", uris:[$p], destination_folder_uri:$folder_uri}` to batch 2. To check, `folder list --folder <folder_uri> --format json` lists the folder's direct contents.
+- If it does not exist, create it (the user asked for it by name) with `{"op": "folder_create", "name": "<folder>"}` in batch 1. The result line holds the folder URI in `.result`; if it is not there, look the folder up again with the command above.
+- Add `{"op": "folder_move", "uris": ["<playlist_uri>"], "destination_folder_uri": "<folder_uri>"}` to batch 2. To check, `folder list --folder <folder_uri> --format json` lists the folder's direct contents.
 - If the folder step fails, keep the playlist where it is and say so in the report.
 
 **Fallback without batch:** `playlist create "<name>"` prints plain text (`Created: <name>  spotify:playlist:<id>`; take the URI with `spotify:playlist:[A-Za-z0-9]+`), then `playlist update <uri> --description "…"`, `playlist add <uri> <track_uri>…` and `folder move <uri> --to <folder_uri>`. If the user chose public, run `playlist update <uri> --public` after creating it (`playlist create --public` is ignored). Quote every argument and apply the Shell safety rules from step 3 to the name, description and folder.
@@ -189,14 +204,16 @@ If an operation fails, stop. Do not retry blindly. Report the playlist link, whi
 ### 6. Verify
 
 ```bash
-"$SPOTIFY_CLI_PATH" playlist get <playlist_uri> --no-tracks --format json | jq '.track_count'
+"$SPOTIFY_CLI_PATH" playlist get <playlist_uri> --no-tracks --format json
+# optional jq: ... | jq '.track_count'
 ```
 
 (`--no-tracks` still returns `track_count`; the `.tracks` array is capped by `--limit`, so don't count it.)
 
 Also list the tracks to check each one is from the intended album, and replace any that are not:
 ```bash
-"$SPOTIFY_CLI_PATH" playlist get <playlist_uri> --limit 100 --format json | jq -r '.tracks[] | "\(.position)\t\(.artists[0])\t\(.name)\t[\(.album)]"'
+"$SPOTIFY_CLI_PATH" playlist get <playlist_uri> --limit 100 --format json
+# optional jq: ... | jq -r '.tracks[] | "\(.position)\t\(.artists[0])\t\(.name)\t[\(.album)]"'
 ```
 
 Confirm the track count matches the ledger (after deduping). If any tracks are missing, add them individually with:
