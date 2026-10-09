@@ -51,6 +51,13 @@ The playlist is either **private** or **public**.
 
 Mention the visibility in the final report. It can be changed later in Spotify or with `"$SPOTIFY_CLI_PATH" playlist update <playlist_uri> --public` or `--private`.
 
+## Track order (in order or shuffled)
+
+- **In order (default):** the tracks follow the text: by artist (or album) as they appear, with each artist's tracks together.
+- **Shuffled:** if the user asks for a random, mixed or shuffled order, put the final list of tracks in random order before writing the manifest.
+
+Do not ask about this. Use the default unless the user says otherwise, and mention in the report that the order can be shuffled on request. Shuffle the finished, deduped list with a real random source, not by hand: `shuf` where it exists, `sort -R`, or `python3 -c 'import random,sys; l=sys.stdin.read().split(); random.shuffle(l); print(*l,sep="\n")'`. (macOS has `sort -R` but not `shuf` by default.) Put the URIs through the tool one per line, and read the result back into `track_uris`. This changes the order of the tracks in the playlist. It does not touch playback shuffle in the Spotify app, and the skill never changes playback settings. Mention the order used in the report.
+
 ## Folder (optional)
 
 If the user names a Spotify playlist folder ("put it in my Newsletters folder"), the new playlist is moved into it after it is created. If the user names no folder, leave the playlist at the top level and do not ask. Folder names are user input: validate them like artist names (see Shell safety in step 3).
@@ -209,7 +216,7 @@ The result line holds the new `spotify:playlist:<id>` in `.result.uri`. New play
 ```
 Set `"public": true` only if the user chose public (see Visibility). Description and visibility work together in one `playlist_update`. The update comes after the add on purpose: with `--stop-on-error`, a failed add means the playlist is never made public.
 
-`track_uris` is the deduped list of `spotify:track:*` URIs in source order (by artist appearance in the text). One `playlist_add` took 11 tracks in a test, so a single operation is fine; split into chunks of 50 for large lists.
+`track_uris` is the deduped list of `spotify:track:*` URIs in the chosen order: source order (by artist appearance in the text) by default, or shuffled if the user asked for that (see Track order). One `playlist_add` took 11 tracks in a test, so a single operation is fine; split into chunks of 50 for large lists.
 
 `playlist_add` does not reject duplicates, so dedupe the URI list yourself first. An invalid URI fails with the misleading error `client connection failed` (the summary then reports the later operations as skipped). If you see that, check the URIs before assuming the Spotify app is down (`"$SPOTIFY_CLI_PATH" status` shows whether it is running).
 

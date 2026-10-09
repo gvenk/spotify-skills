@@ -22,6 +22,7 @@ Example requests:
 - "Agenda to playlist, 3 tracks per artist, call it *Summer concerts*"
 - "Playlist from this agenda, put it in my *Newsletters* folder"
 - "Make a playlist with exactly the songs in this list of winners" (see *Named songs* below)
+- "Playlist from this line-up, shuffled"
 
 Options you can ask for in plain language:
 
@@ -29,6 +30,7 @@ Options you can ask for in plain language:
 |--------|---------|-------|
 | Tracks per artist | 2 recent + 2 older | Each group can be 0 to 5. |
 | Playlist name | generated as `<Source> - <Theme> - <Month Year>` | A name you give is used exactly as written. |
+| Track order | in the order of the text | Say "shuffled" or "random order" to mix the tracks. This sets the order of the tracks in the playlist, not playback shuffle in Spotify. |
 | Visibility | asked if not mentioned (private if it can't ask) | Say "public" or "private" in your request to skip the question. |
 | Folder | none (top level) | An existing folder is used; a new one is created if the name does not exist. |
 | Named songs | asked if the text names songs | If the text pairs artists with specific songs (winners, setlist, tracklist), you can get exactly those songs instead of each artist's top tracks. |
