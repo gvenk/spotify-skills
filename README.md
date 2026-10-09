@@ -6,14 +6,14 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 | Skill | What it does |
 |-------|--------------|
-| [`newsletter-to-playlist`](skills/newsletter-to-playlist/SKILL.md) | Turns a music newsletter or venue agenda (URL or pasted text) into a Spotify playlist, private or public as you choose. |
+| [`text-to-playlist`](skills/text-to-playlist/SKILL.md) | Turns any text that mentions artists (newsletter, agenda, festival line-up, article, review; URL or pasted text) into a Spotify playlist, private or public as you choose. |
 
-### newsletter-to-playlist
+### text-to-playlist
 
 Give the agent a URL or paste the text, and it will:
 
-1. read the newsletter and extract the artists,
-2. find each artist on Spotify and pick their most played tracks, from both recent and older releases,
+1. read the text and extract the artists the text is about (artists mentioned only as history or comparison, such as acts from past editions, are left out),
+2. find each artist on Spotify and pick their most played tracks, from both recent and older releases (reissues and remasters don't count as "recent"),
 3. create a playlist (it asks whether it should be private or public, unless you said so), optionally inside a folder, and verify the result.
 
 Example requests:
@@ -21,6 +21,7 @@ Example requests:
 - "Make a playlist from this newsletter: https://example.com/agenda"
 - "Agenda to playlist, 3 tracks per artist, call it *Summer concerts*"
 - "Playlist from this agenda, put it in my *Newsletters* folder"
+- "Make a playlist with exactly the songs in this list of winners" (see *Named songs* below)
 
 Options you can ask for in plain language:
 
@@ -30,6 +31,11 @@ Options you can ask for in plain language:
 | Playlist name | generated as `<Source> - <Theme> - <Month Year>` | A name you give is used exactly as written. |
 | Visibility | asked if not mentioned (private if it can't ask) | Say "public" or "private" in your request to skip the question. |
 | Folder | none (top level) | An existing folder is used; a new one is created if the name does not exist. |
+| Named songs | asked if the text names songs | If the text pairs artists with specific songs (winners, setlist, tracklist), you can get exactly those songs instead of each artist's top tracks. |
+
+**Same-name artists.** Spotify can have several artists with the same name. The skill picks the one whose releases match the text. If the text gives no hint, it takes an artist only when they have at least 10 times the monthly listeners of every other match, and says in its report that this was a guess. Otherwise it skips the artist and lists them in the report.
+
+**Large texts.** More than 40 artists, or more than 200 tracks in total, makes the skill ask before it continues.
 
 ## Requirements
 
@@ -47,10 +53,10 @@ Copy the skill folder into your agent's skills directory. For Claude Code:
 
 ```bash
 # for all your projects
-cp -R skills/newsletter-to-playlist ~/.claude/skills/
+cp -R skills/text-to-playlist ~/.claude/skills/
 
 # or for one project
-cp -R skills/newsletter-to-playlist <your-project>/.claude/skills/
+cp -R skills/text-to-playlist <your-project>/.claude/skills/
 ```
 
 Other agents have their own skill or instruction locations. See their documentation.
@@ -70,7 +76,7 @@ If `spotify_cli` is not at the default path, set `SPOTIFY_CLI_PATH` to its locat
 
 ```
 skills/
-  newsletter-to-playlist/
+  text-to-playlist/
     SKILL.md
 README.md
 ```
