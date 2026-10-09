@@ -89,6 +89,7 @@ skills/
   text-to-playlist/
     SKILL.md
 README.md
+LICENSE
 ```
 
 ## License
