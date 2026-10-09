@@ -27,6 +27,8 @@ Example requests:
 - "Playlist from this album chart, 2 deep cuts per album" (see *Album lists* below)
 - "Playlist from this top 100, 1 track per album, in the order of the chart"
 
+If you call the skill without a URL or text, or ask for help, it shows a short help message with examples and the options, and asks for input.
+
 Options you can ask for in plain language:
 
 | Option | Default | Notes |

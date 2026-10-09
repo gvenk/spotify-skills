@@ -9,6 +9,32 @@ Use this skill when the user shares a URL or pastes text that mentions musical a
 
 Trigger phrases (in any language): "text to playlist", "make a playlist from this", "playlist from this newsletter", "agenda to playlist", "line-up to playlist", "concert playlist from this article", or the same request in the user's own language.
 
+## No input, or a request for help
+
+If the request has **no URL and no text** that names artists, or the user asks how the skill works ("help", "how does this work", "what can you do"), do not run any command, and do not open the Spotify CLI. Show this help, adapted to the user's language, and ask for input:
+
+```
+text-to-playlist: make a Spotify playlist from any text that names artists.
+
+Give me a URL or paste the text (newsletter, agenda, festival line-up, article, review, chart...).
+
+Examples:
+  - "Make a playlist from this newsletter: <url>"
+  - "Line-up to playlist, 3 tracks per artist, call it Summer concerts"
+  - "Hidden gems of the artists in this review, public, shuffled"
+  - "Put exactly the songs of this chart in a playlist, in my Charts folder"
+
+Options (all optional):
+  tracks per artist   default 2 recent + 2 older ("3 per artist", "only the newest")
+  style               hits (default), deep cuts / hidden gems, or mix
+  name                generated from the source and month, or give your own
+  visibility          private or public (I ask if you do not say)
+  order               in the order of the text (default), or shuffled
+  folder              put the playlist in a folder ("in my Newsletters folder")
+```
+
+If the request has a URL or text but is unclear, do not show this help. Start the work and ask only what the skill says to ask (visibility, and named songs or albums when they apply).
+
 ## Track settings
 
 Two settings control how many tracks each artist gets:
