@@ -36,7 +36,11 @@ How `deep cuts` picks tracks (using the same `total_plays` numbers as `popular`)
 
 A deep cut search needs more candidates than the hits do. Besides `artist:"<artist>"`, also search `artist:"<artist>" album:"<album>"` for each of the artist's first 8 albums (limit 20 each), then rank everything with one `lookup`.
 
-For album lists, `deep cuts` skips the album's 2 most played tracks and applies the same filler rules and ordering to the rest. (This album variant is untested.)
+For album lists, `deep cuts` skips the album's 2 most played tracks (the hits of that album) and applies the same filler rules and ordering to the rest. Three details, found in a test on 13 albums:
+- **Hits are per artist, not per album.** A song skipped as a hit on one album must not come back as a deep cut on another. Queen's "The Show Must Go On" was a hit on one compilation and a "deep cut" on the next. Keep a list of the hits you skipped for each artist, and leave those songs out for that artist's other albums.
+- **Live albums.** The filler filter removes `live` tracks, but on an album that is itself live (most track or album names say live) the filter would remove everything. On a live album, do not apply the `live` filter.
+- **Same song with a credit.** "Sweet Sounds Of Heaven" and "Sweet Sounds Of Heaven (feat. Lady Gaga)" are one song. Remove `(feat. ...)`, `(with ...)` and `- 2009 Mix` style suffixes when comparing titles.
+If an album has fewer than two tracks left after skipping the hits, fill up with the skipped hits. An album that is not on Spotify under that name (for example a compilation called "Forever" where Spotify only has "Today, Tomorrow and Forever") is skipped and listed in the report.
 
 ## Size check (many tracks)
 
