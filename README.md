@@ -4,6 +4,8 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 A product of [Million Pieces](https://millionpieces.nl).
 
+> **Note:** these skills have only been tested on macOS. Windows and Linux are untested and may need changes (for example, the location of `spotify_cli`).
+
 ## Skills
 
 | Skill | What it does |
@@ -56,8 +58,6 @@ Options you can ask for in plain language:
   - Windows: `spotify_cli.exe`, expected on the `PATH` (**untested**)
 - A shell. [`jq`](https://jqlang.github.io/jq/) is optional (the skill only uses it for shortcuts).
 - A way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
-
-The skills were written and tested on macOS only.
 
 ## Which tools can use it
 
