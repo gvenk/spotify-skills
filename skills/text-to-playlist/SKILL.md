@@ -18,6 +18,26 @@ Two settings control how many tracks each artist gets:
 
 If the user states a preference ("3 tracks per artist", "only the newest song", "5 recent and 1 older"), use it. A total like "3 per artist" means `recent` = 2 and `older` = 1 (recent gets the extra one when the total is odd). If the user says nothing, use the defaults and do not ask. Each setting can be 0 to 5. If the user asks for more, use 5 and say so. A setting of 0 skips that group. Mention the values used in the final report.
 
+## Selection style (hits or deep cuts)
+
+The setting `style` decides which tracks are picked from each artist or album:
+- `popular` (default): the most played tracks, the hits.
+- `deep cuts`: less common but still real songs. Users may say "deep cuts", "hidden gems", "lesser-known songs" or "not just the hits".
+- `mix`: in each group (recent and older), the first slot is a hit and the second a deep cut.
+
+If the user says nothing, use `popular` and do not ask. It applies to the usual top tracks per artist and to album lists, not to named songs. State the style in the report.
+
+How `deep cuts` picks tracks (using the same `total_plays` numbers as `popular`):
+1. Rank the artist's candidate tracks (after the namesake, reissue and same-song rules) by `total_plays`. The top **3** are the "hits" and are left out.
+2. From the rest, drop filler: titles with `intro`, `outro`, `interlude`, `skit`, `reprise`, `instrumental`, `interview` or `commentary`, and `dub`, `live` or `remix` versions.
+3. Order what is left by `total_plays`, with tracks below **1%** of the artist's top track going last, so they are used only when nothing else is left. Never pick the least played tracks first: they are usually skits, bonus versions or demos.
+4. Fill the recent group from the newest release in that order, then the older group from other albums (each from a different album where possible), exactly as for `popular`.
+5. If there are too few candidates, fill up from the remaining tracks, and finally from the hits.
+
+A deep cut search needs more candidates than the hits do. Besides `artist:"<artist>"`, also search `artist:"<artist>" album:"<album>"` for each of the artist's first 8 albums (limit 20 each), then rank everything with one `lookup`.
+
+For album lists, `deep cuts` skips the album's 2 most played tracks and applies the same filler rules and ordering to the rest. (This album variant is untested.)
+
 ## Size check (many tracks)
 
 Before searching, estimate the total: artists × (`recent` + `older`), or albums × `per_album`, or the number of named songs. The limit is **200 tracks**.
@@ -145,7 +165,7 @@ For each artist, search Spotify for their discography and select:
 **Selecting tracks:** drop candidates whose `contributors[0].uri` is not the chosen artist URI. Then:
 - **Recent (`recent`):** take the `recent` tracks with the highest `total_plays` from the newest release (by `release_date`). If that release has fewer candidates than `recent` (e.g. a single), fill from the next newest release.
 - **Older (`older`):** take the `older` tracks with the highest `total_plays` from other, older albums, preferably each from a different album.
-Quote `lookup` URIs as separate arguments (in zsh, store them in an array: `"${uris[@]}"`).
+Apply the selection style (hits or deep cuts) from the Selection style section. Quote `lookup` URIs as separate arguments (in zsh, store them in an array: `"${uris[@]}"`).
 
 **Ledger:** while searching, keep a list of `artist -> [track URIs]` (plus the artists that were skipped and why). The playlist is built from this list, deduped, and the verify step compares against it.
 

@@ -30,6 +30,7 @@ Options you can ask for in plain language:
 |--------|---------|-------|
 | Tracks per artist | 2 recent + 2 older | Each group can be 0 to 5. |
 | Playlist name | generated as `<Source> - <Theme> - <Month Year>` | A name you give is used exactly as written. |
+| Selection style | hits (most played) | Say "deep cuts", "hidden gems" or "not just the hits" for less common songs, or "mix" for one hit and one deep cut per group. Doesn't apply to named songs. |
 | Track order | in the order of the text | Say "shuffled" or "random order" to mix the tracks. This sets the order of the tracks in the playlist, not playback shuffle in Spotify. |
 | Visibility | asked if not mentioned (private if it can't ask) | Say "public" or "private" in your request to skip the question. |
 | Folder | none (top level) | An existing folder is used; a new one is created if the name does not exist. |
