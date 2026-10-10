@@ -77,7 +77,11 @@ If a tool cannot run commands on your computer, the skill cannot control Spotify
 
 ## Install
 
-**Download.** Get the repository as a zip: [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip). Unzip it; the skill is the folder `skills/text-to-playlist` inside (the zip's top folder is called `spotify-skills-main`). Or clone the repository with git. Tagged versions, each with a small zip that holds only the skill folder, are listed on the [releases page](https://github.com/gvenk/spotify-skills/releases).
+**Download.** The easiest way is the zip with only the skill, from the latest release: [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip). Unzip it to get the folder `text-to-playlist`. All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
+
+If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skill is the folder `skills/text-to-playlist` inside it) or clone it with git.
+
+In the commands below, `skills/text-to-playlist` is the folder inside the repository. If you unzipped the release zip, use `text-to-playlist` instead.
 
 Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
 
