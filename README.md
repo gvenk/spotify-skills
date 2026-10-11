@@ -8,11 +8,12 @@ A product of [Million Pieces](https://millionpieces.nl).
 
 ## Skills
 
-This repository currently contains **one skill**. More may follow.
+This repository currently contains **two skills**. More may follow.
 
 | Skill | What it does |
 |-------|--------------|
 | [`text-to-playlist`](skills/text-to-playlist/SKILL.md) | Turns any text that mentions artists (newsletter, agenda, festival line-up, article, review; URL or pasted text) into a Spotify playlist, private or public as you choose. |
+| [`radio-dj`](skills/radio-dj/SKILL.md) | Plays a playlist like a radio show: researches each artist and song on the web and speaks a short intro before every track. |
 
 ### text-to-playlist
 
@@ -53,12 +54,36 @@ Options you can ask for in plain language:
 
 **Large texts.** More than 40 artists makes the skill ask before it continues. If the settings would give more than 200 tracks, it tells you up front and uses fewer (for example 1 track per album instead of 2) to stay under 200. You can overrule that by saying how many you want.
 
+### radio-dj
+
+Give the agent a playlist and it will:
+
+1. read the playlist and research each artist and song on the web (facts only, nothing invented),
+2. write a short intro for every track and show them to you for approval,
+3. turn the intros into speech and, after you say go, play the playlist with the intro spoken before each track: over the end of the previous track (the music gets quieter while the host talks), or in a short pause.
+
+Example requests:
+
+- "DJ my playlist *Summer concerts*"
+- "Play this playlist like a radio show, in English, short intros"
+- "Introduce every song of my Friday playlist, first 10 tracks"
+
+**Voice.** The intros are spoken with your computer's own voice. Nothing is downloaded or installed. On macOS the skill picks a voice that matches the language of the intros, preferring Premium and Enhanced voices you have installed. The default voices sound fairly robotic; for a better one, download a Premium or Enhanced voice in *System Settings → Accessibility → Spoken Content → System voice → Manage Voices*.
+
+**Limits.**
+- **macOS only, for now.** The skill has only been tested on macOS. The Windows (built-in speech) and Linux (`espeak-ng`) code paths exist but have never been run, and `spotify_cli` itself is untested there.
+- Needs Python 3.9 or newer.
+- Controlling playback through `spotify_cli` may need a Spotify Premium account.
+- The skill only plays, pauses and changes the volume, and it never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
+- Facts in the intros come from the web and from Spotify's own data. When nothing reliable is found, the intro stays short instead of inventing trivia.
+
 ## Requirements
 
 - The **Spotify desktop app**, installed and logged in. It ships `spotify_cli`:
   - macOS: `/Applications/Spotify.app/Contents/MacOS/spotify_cli`
   - Windows: `spotify_cli.exe`, expected on the `PATH` (**untested**)
 - A shell. [`jq`](https://jqlang.github.io/jq/) is optional (the skill only uses it for shortcuts).
+- For `radio-dj` only: Python 3.9 or newer, and a way for the agent to search the web.
 - A way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 
 ## Which tools can use it
@@ -77,11 +102,18 @@ If a tool cannot run commands on your computer, the skill cannot control Spotify
 
 ## Install
 
-**Download.** The easiest way is the zip with only the skill, from the latest release: [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip). Unzip it to get the folder `text-to-playlist`. All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
+**Download.** The easiest way is the zip with only the skill, from the latest release:
 
-If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skill is the folder `skills/text-to-playlist` inside it) or clone it with git.
+| Skill | Download | Unzips to |
+|-------|----------|-----------|
+| text-to-playlist | [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip) | `text-to-playlist` |
+| radio-dj | [radio-dj.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/radio-dj.zip) | `radio-dj` |
 
-In the commands below, `skills/text-to-playlist` is the folder inside the repository. If you unzipped the release zip, use `text-to-playlist` instead.
+All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
+
+If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skills are the folders under `skills/` inside it) or clone it with git.
+
+The commands below use `text-to-playlist`. **To install `radio-dj`, use `radio-dj` instead** (for example `cp -R skills/radio-dj ~/.claude/skills/`). In the commands, `skills/<name>` is the folder inside the repository. If you unzipped a release zip, use just `<name>`. `radio-dj` is a folder with `SKILL.md` and a `scripts/` folder, so copy the whole folder.
 
 Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
 
@@ -132,6 +164,8 @@ There are two ways to call the skill. The second works in every tool.
 |------|----------------|---------|
 | Claude Code | `/text-to-playlist` | `/text-to-playlist https://example.com/agenda, public` |
 | Codex (CLI and IDE extension) | `$text-to-playlist`, or type `$` or `/skills` to pick it from a list | `$text-to-playlist https://example.com/agenda, public` |
+
+For `radio-dj` the names are `/radio-dj` and `$radio-dj`, for example `/radio-dj my playlist Summer concerts, in Dutch`.
 | Gemini CLI | no name syntax; the model picks the skill itself (see below) | |
 
 **2. Just ask.** The tool picks the skill by its description, so a normal request is enough, in any language:
@@ -149,7 +183,8 @@ Put the options in the same message ("public", "shuffled", "deep cuts", "3 per a
 - Playlists are **private** unless you choose public. If your request doesn't say, the skill asks, and falls back to private when it can't ask.
 - Newsletter text is treated as untrusted data. The agent extracts artist names only and ignores any instructions inside the content.
 - Artist and playlist names are never pasted unescaped into shell commands, and track URIs are validated before they are added.
-- It only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders.
+- `text-to-playlist` only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders.
+- `radio-dj` plays music, but only after you say go. It changes only play, pause and volume, and downloads or installs nothing.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 - Artists are matched by name, then by the artist behind the release. Artists that share a name on Spotify can still be mixed up, so check the result. Artists that cannot be found are listed in the final report.
 
@@ -159,6 +194,10 @@ Put the options in the same message ("public", "shuffled", "deep cuts", "3 per a
 skills/
   text-to-playlist/
     SKILL.md
+  radio-dj/
+    SKILL.md
+    scripts/
+      radio.py
 README.md
 RELEASING.md
 LICENSE

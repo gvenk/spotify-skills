@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+"""Helper for the radio-dj skill: speech synthesis and the playback loop.
+
+Standard library only (Python 3.9+). Speech comes from the operating system's own
+voice, so nothing is downloaded or installed. Tested on macOS only.
+
+Commands:
+  synth    --script FILE --out-dir DIR [--language nl|en] [--os-voice NAME]
+  probe                                      print the raw now-playing JSON
+  run      --tracks FILE [--mode duck|gap] [--duck-level 0.5] [--preview SECONDS]
+                         [--volume 1.0] [--device NAME]
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import wave
+
+TRACK_URI = re.compile(r"^spotify:track:[A-Za-z0-9]{22}$")
+
+
+def die(msg, code=1):
+    print("error: " + msg, file=sys.stderr)
+    sys.exit(code)
+
+
+# ---------------------------------------------------------------- synthesis
+
+MAC_VOICE_PREFERENCE = {"en": ["Samantha", "Daniel", "Karen", "Moira"], "nl": ["Xander", "Claire", "Ellen"]}
+
+
+def mac_voice(language):
+    """Name of an installed macOS voice for the language, so Dutch system settings
+    do not make `say` read English text with a Dutch voice. None = system default."""
+    try:
+        out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    voices = []  # (name, locale)
+    for line in out.splitlines():
+        m = re.match(r"^(.*?)\s+([a-z]{2}_[A-Z]{2})\s+#", line)
+        if m:
+            voices.append((m.group(1).strip(), m.group(2)))
+    names = [n for n, loc in voices if loc.startswith(language + "_")]
+
+    def rank(n):
+        quality = 0 if "premium" in n.lower() else 1 if "enhanced" in n.lower() else 2
+        base = n.split(" (")[0]
+        prefs = MAC_VOICE_PREFERENCE.get(language, [])
+        return (quality, prefs.index(base) if base in prefs else len(prefs))
+
+    # On a non-English system `say -v ?` lists "Xander (Nederlands (Nederland))": match on the base name.
+    # Premium and Enhanced downloads win over the compact voices; multi-language entries
+    # like "Eddy (Engels (VK))" come last.
+    multi = [n for n in names if n.split(" (")[0] not in MAC_VOICE_PREFERENCE.get(language, []) and "(" in n
+             and "premium" not in n.lower() and "enhanced" not in n.lower()]
+    ordered = sorted((n for n in names if n not in multi), key=rank) + multi
+    return ordered[0] if ordered else None
+
+
+WINDOWS_CULTURE = {"en": "en-US", "nl": "nl-NL"}
+
+
+def os_synth(text, out_path, language=None, voice=None):
+    """Synthesize with the operating system voice. Returns True on success."""
+    try:
+        if sys.platform == "darwin":
+            cmd = ["say", "-o", out_path, "--data-format=LEI16@22050"]
+            voice = voice or os.environ.get("RADIO_DJ_OS_VOICE") or (mac_voice(language) if language else None)
+            if voice:
+                cmd += ["-v", voice]
+            subprocess.run(cmd + ["--", text], check=True)
+        elif os.name == "nt":
+            # Text and paths travel in environment variables, never inside the command line.
+            env = dict(os.environ, RADIO_TEXT=text, RADIO_OUT=out_path,
+                       RADIO_CULTURE=WINDOWS_CULTURE.get(language or "", language or ""), RADIO_VOICE=voice or "")
+            ps = ("Add-Type -AssemblyName System.Speech; "
+                  "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                  "try { if ($env:RADIO_VOICE) { $s.SelectVoice($env:RADIO_VOICE) } "
+                  "elseif ($env:RADIO_CULTURE) { $s.SelectVoiceByHints('NotSet', 'NotSet', 0, "
+                  "[System.Globalization.CultureInfo]::GetCultureInfo($env:RADIO_CULTURE)) } } "
+                  "catch { [Console]::Error.WriteLine('No installed Windows voice for this language; using the default voice.') }; "
+                  "$s.SetOutputToWaveFile($env:RADIO_OUT); $s.Speak($env:RADIO_TEXT); $s.Dispose()")
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=True, env=env)
+        else:
+            exe = shutil.which("espeak-ng") or shutil.which("espeak")
+            if not exe:
+                print("No speech engine found. Install espeak-ng (for example `sudo apt install espeak-ng`).", file=sys.stderr)
+                return False
+            cmd = [exe, "-w", out_path]
+            voice = voice or language  # espeak voice names: "nl", "en"
+            if voice:
+                cmd += ["-v", voice]
+            subprocess.run(cmd + ["--", text], check=True)
+        return os.path.exists(out_path)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def cmd_synth(args):
+    with open(args.script, encoding="utf-8") as f:
+        items = json.load(f)  # [{"id": "01", "text": "..."}]
+    os.makedirs(args.out_dir, exist_ok=True)
+    result = []
+    for item in items:
+        iid = str(item["id"])
+        if not re.match(r"^[A-Za-z0-9_-]+$", iid):
+            die("Bad intro id %r" % iid)
+        out = os.path.join(args.out_dir, iid + ".wav")
+        text = " ".join(str(item["text"]).split())
+        ok = os_synth(text, out, args.language, args.os_voice)
+        result.append({"id": iid, "file": out if ok else None})
+        print("%s %s" % ("ok " if ok else "FAIL", iid))
+    with open(os.path.join(args.out_dir, "index.json"), "w") as f:
+        json.dump(result, f, indent=2)
+    if not all(r["file"] for r in result):
+        sys.exit(5)
+
+
+# ---------------------------------------------------------------- playback
+
+def spotify_cli():
+    path = os.environ.get("SPOTIFY_CLI_PATH")
+    if path:
+        return path
+    if sys.platform == "darwin":
+        return "/Applications/Spotify.app/Contents/MacOS/spotify_cli"
+    return "spotify_cli.exe" if os.name == "nt" else "spotify_cli"
+
+
+def cli(*cli_args, check=True):
+    r = subprocess.run([spotify_cli()] + list(cli_args), capture_output=True, text=True)
+    if check and r.returncode != 0:
+        raise RuntimeError("spotify_cli %s failed: %s" % (" ".join(cli_args), (r.stderr or r.stdout).strip()))
+    return r.stdout
+
+
+def now_playing():
+    out = cli("now-playing", "--format", "json", check=False)
+    try:
+        return json.loads(out)
+    except ValueError:
+        return None
+
+
+def read_state(np):
+    """(uri, is_playing) from `now-playing --format json`, or None.
+
+    The CLI reports only the track and whether it plays, not the position:
+    {"currently_playing": {"description", "uri", "context_description", "is_playing"}}
+    """
+    cur = np.get("currently_playing") if isinstance(np, dict) else None
+    if not isinstance(cur, dict):
+        return None
+    return cur.get("uri"), bool(cur.get("is_playing"))
+
+
+def wav_seconds(path):
+    with wave.open(path, "rb") as w:
+        return w.getnframes() / float(w.getframerate())
+
+
+def play_wav(path):
+    if sys.platform == "darwin":
+        subprocess.run(["afplay", path], check=False)
+    elif os.name == "nt":
+        env = dict(os.environ, RADIO_WAV=path)
+        subprocess.run(["powershell", "-NoProfile", "-Command",
+                        "(New-Object System.Media.SoundPlayer $env:RADIO_WAV).PlaySync()"], check=False, env=env)
+    else:
+        for exe, extra in (("paplay", []), ("aplay", ["-q"]), ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"])):
+            if shutil.which(exe):
+                subprocess.run([exe] + extra + [path], check=False)
+                return
+        print("No audio player found (paplay, aplay, ffplay).", file=sys.stderr)
+
+
+def cmd_probe(_args):
+    np = now_playing()
+    print(json.dumps(np, indent=2))
+    print("parsed state (uri, is_playing):", read_state(np))
+
+
+def cmd_run(args):
+    with open(args.tracks, encoding="utf-8") as f:
+        tracks = json.load(f)  # [{"uri","title","artist","intro": "path.wav" | null}]
+    for t in tracks:
+        if not TRACK_URI.match(t["uri"]):
+            die("Invalid track URI: %r" % t["uri"])
+        if not isinstance(t.get("duration_ms"), (int, float)) or t["duration_ms"] <= 0:
+            die("Track %r has no duration_ms. Get it with `spotify_cli lookup <uri> --fields duration`." % t["uri"])
+        t["_intro_s"] = wav_seconds(t["intro"]) if t.get("intro") else 0.0
+
+    restore = args.volume
+
+    def set_volume(level):
+        cli("volume", "%.2f" % level, check=False)
+
+    current = [restore]
+
+    def fade(target, steps=4, seconds=0.6):
+        """Move the volume to target in a few steps, like a radio fader."""
+        start = current[0]
+        for k in range(1, steps + 1):
+            set_volume(start + (target - start) * k / steps)
+            time.sleep(seconds / steps)
+        current[0] = target
+
+    def shutdown(*_):
+        set_volume(restore)
+        cli("pause", check=False)
+        print("\nStopped. Volume restored.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+    set_volume(restore)
+    # Intro of the first track goes before any music.
+    if tracks and tracks[0].get("intro"):
+        print("Intro: %s - %s" % (tracks[0]["artist"], tracks[0]["title"]))
+        play_wav(tracks[0]["intro"])
+
+    for i, t in enumerate(tracks):
+        print("Playing %d/%d: %s - %s" % (i + 1, len(tracks), t["artist"], t["title"]))
+        play_args = ["play", t["uri"]] + (["--device", args.device] if args.device and i == 0 else [])
+        cli(*play_args)
+        nxt = tracks[i + 1] if i + 1 < len(tracks) else None
+        spoken = nxt is None or not nxt.get("intro")
+        lead = 0.0 if nxt is None else nxt["_intro_s"] + 0.5 + (0.6 if args.mode == "duck" else 0.0)
+        # The CLI gives no playback position, so time the track by the clock and
+        # stop the clock while Spotify reports a pause.
+        duration = t["duration_ms"] / 1000.0
+        elapsed, last = 0.0, time.time()
+        if args.preview and duration > args.preview + 5:
+            # Test aid: jump to the last `args.preview` seconds of the track.
+            elapsed = duration - args.preview
+            time.sleep(1.0)
+            cli("seek", str(int(elapsed * 1000)), check=False)
+        while True:
+            time.sleep(1.0)
+            now = time.time()
+            state = read_state(now_playing())
+            if state is None:
+                continue
+            uri, playing = state
+            if uri and uri != t["uri"]:
+                break  # skipped by the user, or Spotify moved on
+            if playing:
+                elapsed += now - last
+            elif elapsed >= duration - 3:
+                break  # Spotify reports "not playing" when a track has finished
+            last = now
+            remaining = duration - elapsed
+            if remaining <= max(lead, 1.0) and not spoken:
+                if args.mode == "duck":
+                    fade(args.duck_level)
+                    print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
+                    play_wav(nxt["intro"])
+                    fade(restore)
+                else:
+                    cli("pause", check=False)
+                    print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
+                    play_wav(nxt["intro"])
+                spoken = True
+                break
+            if remaining <= 0:
+                break
+    print("Done.")
+    set_volume(restore)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("synth")
+    sp.add_argument("--script", required=True)
+    sp.add_argument("--out-dir", required=True)
+    sp.add_argument("--language", help="two-letter language code (nl, en, ...); picks a voice for it")
+    sp.add_argument("--os-voice", help="exact voice name from your system (macOS: `say -v ?`)")
+    sp.set_defaults(fn=cmd_synth)
+    sp = sub.add_parser("probe"); sp.set_defaults(fn=cmd_probe)
+    sp = sub.add_parser("run")
+    sp.add_argument("--tracks", required=True)
+    sp.add_argument("--mode", choices=["duck", "gap"], default="duck")
+    sp.add_argument("--duck-level", type=float, default=0.5, help="music level (0.0-1.0) while the host talks")
+    sp.add_argument("--preview", type=float, default=0, help="test aid: start each track this many seconds before its end")
+    sp.add_argument("--volume", type=float, default=1.0, help="level (0.0-1.0) to restore after ducking")
+    sp.add_argument("--device", help="device name or id from `spotify_cli devices list`")
+    sp.set_defaults(fn=cmd_run)
+
+    args = p.parse_args()
+    args.fn(args)
+
+
+if __name__ == "__main__":
+    main()
