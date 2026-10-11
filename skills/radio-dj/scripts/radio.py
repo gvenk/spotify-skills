@@ -19,6 +19,7 @@ Commands:
                          [--volume 1.0] [--device NAME]
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -33,7 +34,17 @@ import urllib.parse
 import urllib.request
 import wave
 
-TRACK_URI = re.compile(r"^spotify:track:[A-Za-z0-9]{22}$")
+TRACK_URI = re.compile(r"spotify:track:[A-Za-z0-9]{22}")  # used with fullmatch (a "$" would accept a trailing newline)
+
+
+def refuse_symlink(path):
+    """Do not write through a link that someone may have planted in a shared folder."""
+    if os.path.islink(path):
+        die("%s is a symbolic link; refusing to write through it. Use a new private folder." % path)
+
+
+def private_dir(path):
+    os.makedirs(path, mode=0o700, exist_ok=True)
 
 
 def child_env(**extra):
@@ -200,6 +211,7 @@ OPENAI_SPEED = 1.2  # a little brisker than normal speech, like a radio host
 EST_CHARS_PER_MINUTE = 900
 EST_USD_PER_MINUTE = 0.015
 MAX_CHARS_PER_REQUEST = 3000
+MAX_RESPONSE_BYTES = 40 * 1024 * 1024  # longer than any intro; protects memory from a misbehaving server
 LANGUAGE_NAMES = {"nl": "Dutch", "en": "English", "de": "German", "fr": "French", "es": "Spanish", "it": "Italian"}
 
 
@@ -212,6 +224,8 @@ def openai_url():
     override = os.environ.get("RADIO_DJ_OPENAI_URL")  # for tests only
     if not override:
         return OPENAI_URL
+    if os.environ.get("RADIO_DJ_TEST") != "1":
+        die("RADIO_DJ_OPENAI_URL is only for tests and needs RADIO_DJ_TEST=1.")
     if urllib.parse.urlparse(override).hostname not in ("127.0.0.1", "localhost", "::1"):
         die("RADIO_DJ_OPENAI_URL may only point to this computer (it exists for tests).")
     return override
@@ -255,7 +269,10 @@ def openai_synth(text, out_path, voice, model, instructions, key, speed=None):
     for attempt in range(4):
         try:
             with opener.open(req, timeout=90) as resp:
-                data = resp.read()
+                data = resp.read(MAX_RESPONSE_BYTES + 1)
+            if len(data) > MAX_RESPONSE_BYTES:
+                print("OpenAI speech failed: the answer was unexpectedly large", file=sys.stderr)
+                return False
             break
         except urllib.error.HTTPError as e:
             code = error_code(e)
@@ -308,20 +325,31 @@ def default_instructions(language):
             "Names and titles in another language are pronounced the way speakers of that language say them." % name)
 
 
+def consent_hash(texts, language, args):
+    """Fingerprint of everything that would be sent, so a yes covers exactly what was shown."""
+    payload = {"engine": "openai", "model": args.tts_model, "voice": args.tts_voice, "speed": args.tts_speed,
+               "instructions": args.tts_instructions or default_instructions(language), "texts": texts}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+
+
 def cmd_estimate(args):
     with open(args.script, encoding="utf-8") as f:
         items = json.load(f)
-    chars = sum(len(plain_text(str(i["text"]))) for i in items)
+    texts = [plain_text(str(i["text"])) for i in items]
+    chars = sum(len(t) for t in texts)
     minutes = chars / float(EST_CHARS_PER_MINUTE)
     print(json.dumps({
-        "engine": args.engine, "model": args.tts_model, "voice": args.tts_voice,
-        "sends_to": "api.openai.com", "sends": "the intro texts only (no Spotify account data)",
+        "engine": args.engine, "model": args.tts_model, "voice": args.tts_voice, "speed": args.tts_speed,
+        "style_instructions_sent": args.tts_instructions or default_instructions(args.language),
+        "sends_to": "api.openai.com", "sends": "the intro texts and the style instructions above (no Spotify account data)",
+        "consent_code": consent_hash(texts, args.language, args),
         "intros": len(items), "characters": chars, "max_characters": args.max_chars,
         "over_max": chars > args.max_chars,
         "approx_minutes_of_speech": round(minutes, 1),
         "approx_cost_usd": round(minutes * EST_USD_PER_MINUTE, 3),
         "note": "A rough estimate from planning numbers. Check the provider's current pricing.",
-        "requires": "the key in the environment variable OPENAI_API_KEY, and --accept-cloud on synth",
+        "requires": "the key in the environment variable OPENAI_API_KEY, and --accept-cloud <consent_code> on synth, "
+                    "run with the same options as this estimate (language, voice, speed, style)",
         "ai_voice": "The provider's rules require telling listeners that the voice is AI-generated.",
     }, indent=2))
 
@@ -329,26 +357,32 @@ def cmd_estimate(args):
 def cmd_synth(args):
     with open(args.script, encoding="utf-8") as f:
         items = json.load(f)  # [{"id": "01", "text": "..."}]
-    os.makedirs(args.out_dir, exist_ok=True)
+    private_dir(args.out_dir)
     key = None
     check_speed(args.tts_speed)
     if args.engine == "openai":
         if not args.accept_cloud:
-            die("Refusing to send text to a cloud service without --accept-cloud. Run `estimate`, tell the user "
-                "what is sent and what it costs, and ask for a yes.", 2)
+            die("Refusing to send text to a cloud service without --accept-cloud <consent_code>. Run `estimate` with "
+                "the same options, tell the user what is sent and what it costs, ask for a yes, and pass the "
+                "consent_code from the estimate.", 2)
+        texts = [plain_text(str(i["text"])) for i in items]
+        if args.accept_cloud != consent_hash(texts, args.language, args):
+            die("The consent code does not match what would be sent now (texts, voice, speed or style changed). "
+                "Run `estimate` again with these options and ask the user again.", 2)
         key = os.environ.get("OPENAI_API_KEY")
         if not key:
             die("OPENAI_API_KEY is not set. Set it in the shell that starts the agent (never paste it in the chat).", 3)
-        total = sum(len(plain_text(str(i["text"]))) for i in items)
+        total = sum(len(t) for t in texts)
         if total > args.max_chars:
             die("The intros have %d characters, over the limit of %d (--max-chars). Shorten them or raise the limit "
                 "after telling the user the cost." % (total, args.max_chars), 4)
     result = []
     for item in items:
         iid = str(item["id"])
-        if not re.match(r"^[A-Za-z0-9_-]+$", iid):
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", iid):
             die("Bad intro id %r" % iid)
         out = os.path.join(args.out_dir, iid + ".wav")
+        refuse_symlink(out)
         raw, ok, label = str(item["text"]), False, "ok "
         if args.engine == "openai":
             text = plain_text(raw)
@@ -361,6 +395,7 @@ def cmd_synth(args):
             ok = synth_text(raw, out, args.language, args.os_voice, args.one_voice)
         result.append({"id": iid, "file": out if ok else None})
         print("%s %s" % (label if ok else "FAIL", iid))
+    refuse_symlink(os.path.join(args.out_dir, "index.json"))
     with open(os.path.join(args.out_dir, "index.json"), "w") as f:
         json.dump(result, f, indent=2)
     if not all(r["file"] for r in result):
@@ -416,10 +451,11 @@ def cmd_sample(args):
         for v in voices:
             if v is not None and len(v) > 80:
                 die("Voice name too long.")
-    os.makedirs(args.out_dir, exist_ok=True)
+    private_dir(args.out_dir)
     made = []
     for n, v in enumerate(voices, 1):
         out = os.path.join(args.out_dir, "sample-%d.wav" % n)
+        refuse_symlink(out)
         if args.engine == "openai":
             ok = openai_synth(text, out, v, args.tts_model, args.tts_instructions or default_instructions(language), key, args.tts_speed)
         else:
@@ -481,6 +517,7 @@ def wav_seconds(path):
 
 
 def play_wav(path):
+    path = os.path.abspath(path)
     if sys.platform == "darwin":
         subprocess.run(["afplay", path], check=False, env=child_env())
     elif os.name == "nt":
@@ -506,13 +543,17 @@ def cmd_run(args):
         tracks = json.load(f)  # [{"uri","title","artist","duration_ms","intro": "path.wav" | null}]
     seen = set()
     for t in tracks:
-        if not TRACK_URI.match(t["uri"]):
+        if not isinstance(t.get("uri"), str) or not TRACK_URI.fullmatch(t["uri"]):
             die("Invalid track URI: %r" % t["uri"])
         if t["uri"] in seen:
             die("Track %r is in the list twice. Remove duplicates before the run." % t["uri"])
         seen.add(t["uri"])
         if not isinstance(t.get("duration_ms"), (int, float)) or t["duration_ms"] <= 0:
             die("Track %r has no duration_ms. Get it with `spotify_cli lookup <uri> --fields duration`." % t["uri"])
+        if t.get("intro"):
+            t["intro"] = os.path.abspath(str(t["intro"]))  # absolute: a path starting with "-" can never look like an option
+            if not os.path.isfile(t["intro"]):
+                die("The intro file %r does not exist." % t["intro"])
         t["_intro_s"] = wav_seconds(t["intro"]) if t.get("intro") else 0.0
     if not tracks:
         die("No tracks to play.")
@@ -532,11 +573,27 @@ def cmd_run(args):
             time.sleep(seconds / steps)
         current[0] = target
 
+    stopped = [False]
+    pending = [None]  # the track this script put in the queue and that has not started yet
+
     def shutdown(*_):
-        set_volume(restore)
-        cli("pause", check=False)
-        print("\nStopped. Volume restored.")
-        sys.exit(0)
+        stopped[0] = True
+        raise SystemExit(0)  # unwinds through the try/finally below, which restores the volume
+
+    def clear_pending_queue():
+        """Take the track this script queued, if it never started, out of the user's queue again."""
+        uri = pending[0]
+        pending[0] = None
+        if not uri:
+            return
+        try:
+            q = json.loads(cli("queue", "list", "--format", "json", check=False) or "{}")
+        except ValueError:
+            return
+        for pos, item in enumerate(q.get("next_tracks", [])):
+            if item.get("provider") == "queue" and item.get("uri") == uri:
+                cli("queue", "remove", str(pos), check=False)
+                return
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
@@ -561,96 +618,110 @@ def cmd_run(args):
         if k + 1 < n and queued[0] < k + 1:
             cli("queue", "add", tracks[k + 1]["uri"])
             queued[0] = k + 1
+            pending[0] = tracks[k + 1]["uri"]
         return (tracks[k]["duration_ms"] / 1000.0 - args.preview) if (args.preview and tracks[k]["duration_ms"] / 1000.0 > args.preview + 5) else 0.0
 
-    set_volume(restore)
-    # The intro of the first track goes before any music.
-    if tracks[0].get("intro"):
-        print("Intro: %s - %s" % (tracks[0]["artist"], tracks[0]["title"]))
-        play_wav(tracks[0]["intro"])
-    spoken[0] = True
-    print("Playing 1/%d: %s - %s" % (n, tracks[0]["artist"], tracks[0]["title"]))
-    cli(*(["play", tracks[0]["uri"]] + (["--device", args.device] if args.device else [])))
-    queued[0] = 0
-    i = 0
-    elapsed = begin(0)
-    last, idle_since = time.time(), None
-    predicted_end = last + tracks[0]["duration_ms"] / 1000.0 - elapsed
+    def play_show():
+        set_volume(restore)
+        # The intro of the first track goes before any music.
+        if tracks[0].get("intro"):
+            print("Intro: %s - %s" % (tracks[0]["artist"], tracks[0]["title"]))
+            play_wav(tracks[0]["intro"])
+        spoken[0] = True
+        print("Playing 1/%d: %s - %s" % (n, tracks[0]["artist"], tracks[0]["title"]))
+        cli(*(["play", tracks[0]["uri"]] + (["--device", args.device] if args.device else [])))
+        queued[0] = 0
+        i = 0
+        elapsed = begin(0)
+        last, idle_since = time.time(), None
+        predicted_end = last + tracks[0]["duration_ms"] / 1000.0 - elapsed
 
-    while True:
-        time.sleep(1.0)
-        now = time.time()
-        state = read_state(now_playing())
-        if state is None:
-            continue
-        uri, playing = state
-
-        if uri != tracks[i]["uri"]:
-            if uri in index_of:
-                # The track changed: natural end, skip, jump to the end, or the user picked another one.
-                j = index_of[uri]
-                if i == n - 1 and j <= i and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
-                    # The last track ran to its end and Spotify's autoplay started a track from the list again.
-                    cli("pause", check=False)
-                    break
-                for k in range(min(i, j), j):
-                    spoken[k] = True  # skipped past; their intros no longer apply
-                i = j
-                print("Playing %d/%d: %s - %s" % (i + 1, n, tracks[i]["artist"], tracks[i]["title"]))
-                idle_since = None
-                if not spoken[i]:
-                    spoken[i] = True
-                    intro_over_music(tracks[i])  # the track started before its intro: talk over the start
-                elapsed = begin(i)
-                # An intro that blocked us may have spanned the change: count the time the track already ran.
-                elapsed = max(elapsed, min(max(now - predicted_end, 0.0), 8.0))
-                last = time.time()
-                predicted_end = last + tracks[i]["duration_ms"] / 1000.0 - elapsed
+        while True:
+            time.sleep(1.0)
+            now = time.time()
+            state = read_state(now_playing())
+            if state is None:
                 continue
-            # Something outside the playlist is playing.
-            if i == n - 1 and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
-                cli("pause", check=False)  # Spotify's autoplay after the last track: keep the silence
+            uri, playing = state
+
+            if uri != tracks[i]["uri"]:
+                if uri in index_of:
+                    # The track changed: natural end, skip, jump to the end, or the user picked another one.
+                    j = index_of[uri]
+                    if uri == pending[0]:
+                        pending[0] = None  # the queued track has started: it is no longer ours to clean up
+                    if i == n - 1 and j <= i and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
+                        # The last track ran to its end and Spotify's autoplay started a track from the list again.
+                        cli("pause", check=False)
+                        break
+                    for k in range(min(i, j), j):
+                        spoken[k] = True  # skipped past; their intros no longer apply
+                    i = j
+                    print("Playing %d/%d: %s - %s" % (i + 1, n, tracks[i]["artist"], tracks[i]["title"]))
+                    idle_since = None
+                    if not spoken[i]:
+                        spoken[i] = True
+                        intro_over_music(tracks[i])  # the track started before its intro: talk over the start
+                    elapsed = begin(i)
+                    # An intro that blocked us may have spanned the change: count the time the track already ran.
+                    elapsed = max(elapsed, min(max(now - predicted_end, 0.0), 8.0))
+                    last = time.time()
+                    predicted_end = last + tracks[i]["duration_ms"] / 1000.0 - elapsed
+                    continue
+                # Something outside the playlist is playing.
+                if i == n - 1 and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
+                    cli("pause", check=False)  # Spotify's autoplay after the last track: keep the silence
+                else:
+                    print("Another track started outside the playlist; stopping the show.")
+                break
+
+            if playing:
+                elapsed += now - last
+                idle_since = None
             else:
-                print("Another track started outside the playlist; stopping the show.")
-            break
+                if idle_since is None:
+                    idle_since = now
+                # After the last track Spotify just reports "not playing", like a pause. The clock says
+                # whether it ran to its end; a skip on the last track is caught by the shorter wait.
+                if i == n - 1 and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
+                    break
+                if now - idle_since > (10 if i == n - 1 else 3 * 3600):
+                    break
+            last = now
 
-        if playing:
-            elapsed += now - last
-            idle_since = None
-        else:
-            if idle_since is None:
-                idle_since = now
-            # After the last track Spotify just reports "not playing", like a pause. The clock says
-            # whether it ran to its end; a skip on the last track is caught by the shorter wait.
-            if i == n - 1 and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
-                break
-            if now - idle_since > (10 if i == n - 1 else 3 * 3600):
-                break
-        last = now
+            remaining = tracks[i]["duration_ms"] / 1000.0 - elapsed
+            if playing:
+                predicted_end = now + remaining
+            if i == n - 1:
+                if playing and remaining <= -2:
+                    break
+                continue
+            nxt = tracks[i + 1]
+            if playing and not spoken[i + 1]:
+                if args.mode == "duck" and remaining <= nxt["_intro_s"] + 1.7:
+                    spoken[i + 1] = True
+                    intro_over_music(nxt)
+                    last = time.time()
+                elif args.mode == "gap" and remaining <= 1.5:
+                    spoken[i + 1] = True
+                    cli("pause", check=False)
+                    print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
+                    play_wav(nxt["intro"])
+                    cli("next", check=False)  # starts the queued track, also from a pause
+                    last = time.time()
 
-        remaining = tracks[i]["duration_ms"] / 1000.0 - elapsed
-        if playing:
-            predicted_end = now + remaining
-        if i == n - 1:
-            if playing and remaining <= -2:
-                break
-            continue
-        nxt = tracks[i + 1]
-        if playing and not spoken[i + 1]:
-            if args.mode == "duck" and remaining <= nxt["_intro_s"] + 1.7:
-                spoken[i + 1] = True
-                intro_over_music(nxt)
-                last = time.time()
-            elif args.mode == "gap" and remaining <= 1.5:
-                spoken[i + 1] = True
-                cli("pause", check=False)
-                print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
-                play_wav(nxt["intro"])
-                cli("next", check=False)  # starts the queued track, also from a pause
-                last = time.time()
+        print("Done.")
+        set_volume(restore)
 
-    print("Done.")
-    set_volume(restore)
+    try:
+        play_show()
+    finally:
+        # Also on Ctrl+C, a termination signal or an error: the volume must not stay lowered.
+        set_volume(restore)
+        if stopped[0]:
+            cli("pause", check=False)
+            print("\nStopped. Volume restored.")
+        clear_pending_queue()
 
 
 def main():
@@ -672,7 +743,7 @@ def main():
     sp.add_argument("--one-voice", action="store_true", help="read {xx:name} parts with the main voice too (no voice switching)")
     sp.add_argument("--engine", choices=["os", "openai"], default="os")
     add_cloud_args(sp)
-    sp.add_argument("--accept-cloud", action="store_true", help="the user agreed to send the intro text to the cloud service")
+    sp.add_argument("--accept-cloud", metavar="CONSENT_CODE", help="the user agreed to send exactly what `estimate` showed; pass its consent_code")
     sp.add_argument("--no-fallback", action="store_true", help="do not fall back to the computer voice when the cloud voice fails")
     sp.set_defaults(fn=cmd_synth)
     sp = sub.add_parser("voices")
@@ -692,6 +763,7 @@ def main():
     sp.set_defaults(fn=cmd_sample)
     sp = sub.add_parser("estimate")
     sp.add_argument("--script", required=True)
+    sp.add_argument("--language", help="two-letter language code (the style instructions name it)")
     sp.add_argument("--engine", choices=["openai"], default="openai")
     add_cloud_args(sp)
     sp.set_defaults(fn=cmd_estimate)

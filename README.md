@@ -71,7 +71,7 @@ Example requests:
 **Better voice (optional, cloud).** If the computer's voice is too robotic, you can ask for an OpenAI voice. It reads Dutch and English together in one voice, with no voice switch. In a test with Dutch intros containing English band and song names, it sounded clearly better than the computer's voice, English names included. The default is a high-energy radio host, spoken a bit faster than normal (speed 1.2); you can ask for another voice, style or pace ("slower", "faster").
 - **What you need:** an OpenAI API account with some credit (the API is billed separately from a ChatGPT subscription) and an API key in the environment variable `OPENAI_API_KEY`. Set it in the shell that starts your AI tool, and never paste it into the chat. A show of ten tracks costs a few cents; the skill gives an estimate first.
 - **Keep the key small:** create a separate project with a small monthly budget, and a *restricted* key that allows only **Text-to-speech (/v1/audio/speech)**, with everything else on None. Revoke it when you no longer need it.
-- **Before anything is sent**, the skill tells you what is sent (the intro texts only, to `api.openai.com`), roughly what it costs, and that the voice is AI-generated (OpenAI's rules ask you to say so when others listen), and it waits for your yes. If a request fails, that intro uses the computer's voice.
+- **Before anything is sent**, the skill tells you what is sent (the intro texts and the style instructions, to `api.openai.com`), roughly what it costs, and that the voice is AI-generated (OpenAI's rules ask you to say so when others listen), and it waits for your yes. Your yes is tied to exactly what was shown: if a text, the voice, the pace or the style changes afterwards, the script refuses to send until you have agreed again. If a request fails, that intro uses the computer's voice.
 - Tried so far with one account on macOS. If you see "no credit left", add credit or raise the project's budget.
 
 **Show notes (optional).** Ask for "show notes" and you get a Markdown file with the running order, the intro for every track and the sources the facts came from. It is only written when you ask, and never overwrites an existing file.
@@ -82,7 +82,7 @@ Example requests:
 - **macOS only, for now.** The skill has only been tested on macOS. The Windows (built-in speech) and Linux (`espeak-ng`) code paths exist but have never been run, and `spotify_cli` itself is untested there.
 - Needs Python 3.9 or newer.
 - Controlling playback through `spotify_cli` may need a Spotify Premium account.
-- The skill plays, pauses and changes the volume, and it puts the next track of the list in your Spotify queue, one at a time (a stopped show can leave one track in your queue). It never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
+- The skill plays, pauses and changes the volume, and it puts the next track of the list in your Spotify queue, one at a time (when the show ends or you stop it, the track that was queued but never started is taken out again). It never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
 - Facts in the intros come from the web and from Spotify's own data. When nothing reliable is found, the intro stays short instead of inventing trivia.
 
 ## Requirements
