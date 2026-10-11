@@ -4,7 +4,7 @@ How to publish a new version of the skills in this repository. A release is a gi
 
 ## Steps
 
-1. Commit and push all changes to `main`. Check that the README and `SKILL.md` describe what the skill does now.
+1. Commit and push all changes to `main`. Check that the README, the pages in `docs/` and each `SKILL.md` describe what the skills do now.
 2. Zip only the skill folders, so each folder itself is at the top of its zip:
    ```bash
    cd skills
