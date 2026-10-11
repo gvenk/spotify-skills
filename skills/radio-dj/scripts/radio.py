@@ -248,20 +248,26 @@ def cmd_probe(_args):
 
 def cmd_run(args):
     with open(args.tracks, encoding="utf-8") as f:
-        tracks = json.load(f)  # [{"uri","title","artist","intro": "path.wav" | null}]
+        tracks = json.load(f)  # [{"uri","title","artist","duration_ms","intro": "path.wav" | null}]
+    seen = set()
     for t in tracks:
         if not TRACK_URI.match(t["uri"]):
             die("Invalid track URI: %r" % t["uri"])
+        if t["uri"] in seen:
+            die("Track %r is in the list twice. Remove duplicates before the run." % t["uri"])
+        seen.add(t["uri"])
         if not isinstance(t.get("duration_ms"), (int, float)) or t["duration_ms"] <= 0:
             die("Track %r has no duration_ms. Get it with `spotify_cli lookup <uri> --fields duration`." % t["uri"])
         t["_intro_s"] = wav_seconds(t["intro"]) if t.get("intro") else 0.0
-
+    if not tracks:
+        die("No tracks to play.")
+    n = len(tracks)
+    index_of = {t["uri"]: k for k, t in enumerate(tracks)}
     restore = args.volume
+    current = [restore]
 
     def set_volume(level):
         cli("volume", "%.2f" % level, check=False)
-
-    current = [restore]
 
     def fade(target, steps=4, seconds=0.6):
         """Move the volume to target in a few steps, like a radio fader."""
@@ -280,57 +286,110 @@ def cmd_run(args):
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
+    def intro_over_music(t):
+        fade(args.duck_level)
+        print("Intro: %s - %s" % (t["artist"], t["title"]))
+        play_wav(t["intro"])
+        fade(restore)
+
+    # Spotify's own queue does the advancing, so a skip, a jump to the end and a natural
+    # end all show up as a change of track. (`now-playing` reports pause, skip and end alike:
+    # the same track, "not playing".) The script times the intros by the clock only.
+    spoken = [not t.get("intro") for t in tracks]
+    queued = [0]  # index of the last track put in the queue (or being played)
+
+    def begin(k, first=False):
+        """Bookkeeping when track k starts: seek for preview, queue the next track."""
+        if args.preview and tracks[k]["duration_ms"] / 1000.0 > args.preview + 5:
+            time.sleep(1.0)
+            cli("seek", str(int(tracks[k]["duration_ms"] - args.preview * 1000)), check=False)
+        if k + 1 < n and queued[0] < k + 1:
+            cli("queue", "add", tracks[k + 1]["uri"])
+            queued[0] = k + 1
+        return (tracks[k]["duration_ms"] / 1000.0 - args.preview) if (args.preview and tracks[k]["duration_ms"] / 1000.0 > args.preview + 5) else 0.0
+
     set_volume(restore)
-    # Intro of the first track goes before any music.
-    if tracks and tracks[0].get("intro"):
+    # The intro of the first track goes before any music.
+    if tracks[0].get("intro"):
         print("Intro: %s - %s" % (tracks[0]["artist"], tracks[0]["title"]))
         play_wav(tracks[0]["intro"])
+    spoken[0] = True
+    print("Playing 1/%d: %s - %s" % (n, tracks[0]["artist"], tracks[0]["title"]))
+    cli(*(["play", tracks[0]["uri"]] + (["--device", args.device] if args.device else [])))
+    queued[0] = 0
+    i = 0
+    elapsed = begin(0)
+    last, idle_since = time.time(), None
+    predicted_end = last + tracks[0]["duration_ms"] / 1000.0 - elapsed
 
-    for i, t in enumerate(tracks):
-        print("Playing %d/%d: %s - %s" % (i + 1, len(tracks), t["artist"], t["title"]))
-        play_args = ["play", t["uri"]] + (["--device", args.device] if args.device and i == 0 else [])
-        cli(*play_args)
-        nxt = tracks[i + 1] if i + 1 < len(tracks) else None
-        spoken = nxt is None or not nxt.get("intro")
-        lead = 0.0 if nxt is None else nxt["_intro_s"] + 0.5 + (0.6 if args.mode == "duck" else 0.0)
-        # The CLI gives no playback position, so time the track by the clock and
-        # stop the clock while Spotify reports a pause.
-        duration = t["duration_ms"] / 1000.0
-        elapsed, last = 0.0, time.time()
-        if args.preview and duration > args.preview + 5:
-            # Test aid: jump to the last `args.preview` seconds of the track.
-            elapsed = duration - args.preview
-            time.sleep(1.0)
-            cli("seek", str(int(elapsed * 1000)), check=False)
-        while True:
-            time.sleep(1.0)
-            now = time.time()
-            state = read_state(now_playing())
-            if state is None:
+    while True:
+        time.sleep(1.0)
+        now = time.time()
+        state = read_state(now_playing())
+        if state is None:
+            continue
+        uri, playing = state
+
+        if uri != tracks[i]["uri"]:
+            if uri in index_of:
+                # The track changed: natural end, skip, jump to the end, or the user picked another one.
+                j = index_of[uri]
+                for k in range(min(i, j), j):
+                    spoken[k] = True  # skipped past; their intros no longer apply
+                i = j
+                print("Playing %d/%d: %s - %s" % (i + 1, n, tracks[i]["artist"], tracks[i]["title"]))
+                idle_since = None
+                if not spoken[i]:
+                    spoken[i] = True
+                    intro_over_music(tracks[i])  # the track started before its intro: talk over the start
+                elapsed = begin(i)
+                # An intro that blocked us may have spanned the change: count the time the track already ran.
+                elapsed = max(elapsed, min(max(now - predicted_end, 0.0), 8.0))
+                last = time.time()
+                predicted_end = last + tracks[i]["duration_ms"] / 1000.0 - elapsed
                 continue
-            uri, playing = state
-            if uri and uri != t["uri"]:
-                break  # skipped by the user, or Spotify moved on
-            if playing:
-                elapsed += now - last
-            elif elapsed >= duration - 3:
-                break  # Spotify reports "not playing" when a track has finished
-            last = now
-            remaining = duration - elapsed
-            if remaining <= max(lead, 1.0) and not spoken:
-                if args.mode == "duck":
-                    fade(args.duck_level)
-                    print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
-                    play_wav(nxt["intro"])
-                    fade(restore)
-                else:
-                    cli("pause", check=False)
-                    print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
-                    play_wav(nxt["intro"])
-                spoken = True
+            # Something outside the playlist is playing.
+            if i == n - 1 and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
+                cli("pause", check=False)  # Spotify's autoplay after the last track: keep the silence
+            else:
+                print("Another track started outside the playlist; stopping the show.")
+            break
+
+        if playing:
+            elapsed += now - last
+            idle_since = None
+        else:
+            if idle_since is None:
+                idle_since = now
+            # After the last track Spotify just reports "not playing", like a pause. The clock says
+            # whether it ran to its end; a skip on the last track is caught by the shorter wait.
+            if i == n - 1 and elapsed >= tracks[i]["duration_ms"] / 1000.0 - 3:
                 break
-            if remaining <= 0:
+            if now - idle_since > (10 if i == n - 1 else 3 * 3600):
                 break
+        last = now
+
+        remaining = tracks[i]["duration_ms"] / 1000.0 - elapsed
+        if playing:
+            predicted_end = now + remaining
+        if i == n - 1:
+            if playing and remaining <= -2:
+                break
+            continue
+        nxt = tracks[i + 1]
+        if playing and not spoken[i + 1]:
+            if args.mode == "duck" and remaining <= nxt["_intro_s"] + 1.7:
+                spoken[i + 1] = True
+                intro_over_music(nxt)
+                last = time.time()
+            elif args.mode == "gap" and remaining <= 1.5:
+                spoken[i + 1] = True
+                cli("pause", check=False)
+                print("Intro: %s - %s" % (nxt["artist"], nxt["title"]))
+                play_wav(nxt["intro"])
+                cli("next", check=False)  # starts the queued track, also from a pause
+                last = time.time()
+
     print("Done.")
     set_volume(restore)
 

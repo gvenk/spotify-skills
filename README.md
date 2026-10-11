@@ -59,7 +59,7 @@ Options you can ask for in plain language:
 Give the agent a playlist and it will:
 
 1. read the playlist and research each artist and song on the web (facts only, nothing invented),
-2. write a short intro for every track and show them to you for approval,
+2. write a short intro for every track (you can ask to read and change them first; by default they are not shown before the show),
 3. turn the intros into speech and, after you say go, play the playlist with the intro spoken before each track: over the end of the previous track (the music gets quieter while the host talks), or in a short pause.
 
 Example requests:
@@ -67,6 +67,8 @@ Example requests:
 - "DJ my playlist *Summer concerts*"
 - "Play this playlist like a radio show, in English, short intros"
 - "Introduce every song of my Friday playlist, first 10 tracks"
+
+**Show notes (optional).** Ask for "show notes" and you get a Markdown file with the running order, the intro for every track and the sources the facts came from. It is only written when you ask, and never overwrites an existing file.
 
 **Voice.** The intros are spoken with your computer's own voice. Nothing is downloaded or installed. On macOS the skill picks a voice that matches the language of the intros, preferring Premium and Enhanced voices you have installed. Titles and names in another language (English song titles in a Dutch intro) are spoken by a voice for their own language, so you hear the voice change, like a bilingual host. The default voices sound fairly robotic; for a better one, download a Premium or Enhanced voice in *System Settings → Accessibility → Spoken Content → System voice → Manage Voices*.
 
