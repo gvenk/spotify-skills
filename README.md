@@ -18,7 +18,7 @@ This repository currently contains **three skills**. More may follow.
 
 Example requests:
 
-- "Make a playlist from this newsletter: https://example.com/agenda" (`text-to-playlist`)
+- "Make a playlist from this newsletter: `https://example.com/agenda`" (`text-to-playlist`)
 - "DJ my playlist *Summer concerts*" (`radio-dj`)
 - "What do *Summer 2025* and *Road trip* have in common?" (`playlist-vennify`)
 
@@ -119,7 +119,7 @@ For example: `/text-to-playlist https://example.com/agenda, public` or `$radio-d
 
 **2. Just ask.** The tool picks the skill by its description, so a normal request is enough, in any language:
 
-- "Make a playlist from this newsletter: https://example.com/agenda"
+- "Make a playlist from this newsletter: `https://example.com/agenda`"
 - "Turn this line-up into a Spotify playlist, 3 tracks per artist, hidden gems, shuffled"
 - Paste the text and say "playlist from this, private"
 - "DJ my playlist Summer concerts"

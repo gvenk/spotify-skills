@@ -14,7 +14,7 @@ Give the agent a URL or paste the text, and it will:
 
 Example requests:
 
-- "Make a playlist from this newsletter: https://example.com/agenda"
+- "Make a playlist from this newsletter: `https://example.com/agenda`"
 - "Agenda to playlist, 3 tracks per artist, call it *Summer concerts*"
 - "Playlist from this agenda, put it in my *Newsletters* folder"
 - "Make a playlist with exactly the songs in this list of winners" (see *Named songs* below)
