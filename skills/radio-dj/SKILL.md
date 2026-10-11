@@ -34,7 +34,7 @@ The playlist has to be in your Spotify library (save or follow it first).
 Nothing plays until you say go.
 
 Options (all optional):
-  language     Dutch or English (default: the language of your request)
+  language     any language your computer has a voice for (default: the language of your request)
   tracks       how many tracks (default: all, up to 30; I ask above that)
   show texts   off by default; say "show me the intros first" to read and change them before the show
   show notes   off by default; say "write show notes" to get a Markdown file with the running order,
