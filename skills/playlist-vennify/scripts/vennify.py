@@ -37,6 +37,22 @@ def die(msg, code=1):
     sys.exit(code)
 
 
+BIDI_CONTROLS = set("‪‫‬‭‮⁦⁧⁨⁩")
+
+
+def clean_text(value, limit=300):
+    """Untrusted text (a playlist or track name) made safe to print and to write back to Spotify:
+    control characters (terminal escapes, bells) and text-direction overrides are removed, all
+    whitespace becomes single spaces, and the length is capped."""
+    kept = []
+    for ch in str(value):
+        if ch.isspace():
+            kept.append(" ")
+        elif unicodedata.category(ch) != "Cc" and ch not in BIDI_CONTROLS:
+            kept.append(ch)
+    return " ".join("".join(kept).split())[:limit]
+
+
 # ---------------------------------------------------------------- talking to spotify_cli
 
 def spotify_cli():
@@ -137,9 +153,9 @@ def load_playlists(refs):
                 dups += 1
                 continue
             seen.add(u)
-            tracks.append({"uri": u, "name": str(t.get("name", "")), "artists": [str(a) for a in t.get("artists", [])],
-                           "album": str(t.get("album", ""))})
-        pls.append({"label": LABELS[k], "name": str(d.get("name") or uri), "uri": uri, "owner": d.get("owner"),
+            tracks.append({"uri": u, "name": clean_text(t.get("name", "")), "artists": [clean_text(a) for a in t.get("artists", [])],
+                           "album": clean_text(t.get("album", ""))})
+        pls.append({"label": LABELS[k], "name": clean_text(d.get("name") or uri), "uri": uri, "owner": clean_text(d.get("owner") or ""),
                     "tracks": tracks, "skipped_not_tracks": skipped, "duplicates_in_playlist": dups,
                     "declared_track_count": d.get("track_count")})
     return pls
@@ -332,7 +348,7 @@ def run_batch(ops):
 
 
 def default_name(sel):
-    names = [p["name"] for p in sel["playlists"]]
+    names = [clean_text(p["name"], 60) for p in sel["playlists"]]  # from the selection file: clean again
     word = {"overlap": "in common", "unique": "unique", "union": "combined", "atleast": "in %s or more" % sel.get("min")}[sel["select"]]
     return ("Vennify - %s - %s" % (" + ".join(names), word))[:100]
 
@@ -350,7 +366,7 @@ def cmd_playlist(args):
         new_uri = (res[0].get("result") or {}).get("uri") if res else None
         if not new_uri or not PLAYLIST_URI.fullmatch(str(new_uri)):
             die("The playlist could not be created: %s" % (res[:1],), 8)
-        description = "playlist-vennify: %s of %s" % (sel["select"], ", ".join(p["name"] for p in sel["playlists"]))
+        description = clean_text("playlist-vennify: %s of %s" % (clean_text(sel["select"], 20), ", ".join(clean_text(p["name"], 60) for p in sel["playlists"])), 300)
         run_batch([{"op": "playlist_add", "playlist_uri": new_uri, "track_uris": uris},
                    {"op": "playlist_update", "playlist_uri": new_uri, "description": description[:300], "public": False}])
         check = cli_json("playlist", "get", new_uri, "--no-tracks")

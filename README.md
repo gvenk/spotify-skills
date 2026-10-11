@@ -137,7 +137,7 @@ Put the options in the same message, or leave them out and the skill asks only w
 - Artist and playlist names are never pasted unescaped into shell commands, and track URIs are validated before they are used.
 - `text-to-playlist` only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders. Playlists are private unless you choose public.
 - `radio-dj` plays music, but only after you say go. It plays, pauses, changes the volume and puts the next track of the list at the front of your queue, with your own queued tracks behind it. See [its page](docs/radio-dj.md#safety-and-limits) for the details.
-- `playlist-vennify` only reads when it compares. It changes your queue or creates a private playlist only after you say yes, and only with exactly the list you were shown. It never plays, pauses or skips.
+- `playlist-vennify` only reads when it compares. It changes your queue or creates a private playlist only after you say yes (the skill is instructed to ask first), and the script checks that it acts on exactly the list you were shown. It never plays, pauses or skips.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 
 The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits), [radio-dj](docs/radio-dj.md#safety-and-limits) and [playlist-vennify](docs/playlist-vennify.md#safety-and-limits).

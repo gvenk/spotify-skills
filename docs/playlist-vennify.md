@@ -44,11 +44,11 @@ You can compare 2 to 10 playlists at once. The report shows the size of every re
 
 ## Safety and limits
 
-- **Comparing only reads.** Adding to the queue and creating a playlist change your Spotify, and only happen after you say yes. The script also needs the confirmation code of the exact list you were shown, so a different list can't be added than the one you approved.
+- **Comparing only reads.** Adding to the queue and creating a playlist change your Spotify. The skill is instructed to ask you first and wait for your yes. The script adds a check of its own: it needs a confirmation code tied to the exact tracks, in their order, so the list can't change between what you were shown and what is added. That code guards against mistakes. It is not a lock against an agent that ignores its instructions, so keep your tool's approval prompts for shell commands switched on.
 - **Limits you will be asked about:** more than 50 tracks for the queue, more than 200 for a new playlist.
 - **A new playlist is always private.** The skill never changes visibility.
 - **It cannot take tracks out of your queue again.** Clear them in Spotify if you change your mind. It never plays, pauses or skips, and never deletes anything.
-- Playlist names, descriptions and track titles are treated as untrusted data. The agent takes facts from them and ignores any instructions inside.
+- Playlist names, descriptions and track titles are treated as untrusted data. The agent takes facts from them and ignores any instructions inside. The script also removes control characters and text-direction tricks from names and titles, tidies the whitespace and caps their length, so a crafted name can't mess up your terminal or end up garbled in a new playlist. A name you type yourself for a new playlist is used exactly as you give it.
 - Episodes and local files in a playlist are skipped and counted. A track that appears twice in one playlist counts once.
 - Only playlists in your library can be read.
 - Adding to the queue may need a Spotify Premium account (not verified).
