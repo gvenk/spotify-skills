@@ -8,17 +8,19 @@ A product of [Million Pieces](https://millionpieces.nl).
 
 ## Skills
 
-This repository currently contains **two skills**. More may follow.
+This repository currently contains **three skills**. More may follow.
 
 | Skill | What it does | Details |
 |-------|--------------|---------|
 | [`text-to-playlist`](skills/text-to-playlist/SKILL.md) | Turns any text that mentions artists (newsletter, agenda, festival line-up, article, review; URL or pasted text) into a Spotify playlist, private or public as you choose. | [docs/text-to-playlist.md](docs/text-to-playlist.md) |
 | [`radio-dj`](skills/radio-dj/SKILL.md) | Plays a playlist like a radio show: researches each artist and song on the web and speaks a short intro before every track. Optional OpenAI voice. | [docs/radio-dj.md](docs/radio-dj.md) |
+| [`playlist-vennify`](skills/playlist-vennify/SKILL.md) | Compares two or more playlists like a Venn diagram (overlap, unique tracks, combined, in at least N) and adds the result to your queue or saves it as a new private playlist. | [docs/playlist-vennify.md](docs/playlist-vennify.md) |
 
 Example requests:
 
 - "Make a playlist from this newsletter: https://example.com/agenda" (`text-to-playlist`)
 - "DJ my playlist *Summer concerts*" (`radio-dj`)
+- "What do *Summer 2025* and *Road trip* have in common?" (`playlist-vennify`)
 
 The details of each skill (options, voices, safety and limits) are on its page in [`docs/`](docs/).
 
@@ -30,6 +32,7 @@ The details of each skill (options, voices, safety and limits) are on its page i
 - A shell. [`jq`](https://jqlang.github.io/jq/) is optional (`text-to-playlist` only uses it for shortcuts).
 - `text-to-playlist`: a way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 - `radio-dj`: Python 3.9 or newer, and a way for the agent to search the web.
+- `playlist-vennify`: Python 3.9 or newer. The playlists have to be in your Spotify library.
 
 ## Which tools can use it
 
@@ -53,12 +56,13 @@ If a tool cannot run commands on your computer, the skills cannot control Spotif
 |-------|----------|-----------|
 | text-to-playlist | [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip) | `text-to-playlist` |
 | radio-dj | [radio-dj.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/radio-dj.zip) | `radio-dj` |
+| playlist-vennify | [playlist-vennify.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-vennify.zip) | `playlist-vennify` |
 
 All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
 
 If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skills are the folders under `skills/` inside it) or clone it with git.
 
-In the commands below, `<skill>` is `text-to-playlist` or `radio-dj`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj` is a `SKILL.md` and a `scripts/` folder.
+In the commands below, `<skill>` is `text-to-playlist`, `radio-dj` or `playlist-vennify`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj` and `playlist-vennify` are a `SKILL.md` and a `scripts/` folder.
 
 Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
 
@@ -107,7 +111,7 @@ There are two ways to call a skill. The second works in every tool.
 
 | Tool | How to call it |
 |------|----------------|
-| Claude Code | `/<skill>`, for example `/text-to-playlist` or `/radio-dj` |
+| Claude Code | `/<skill>`, for example `/text-to-playlist`, `/radio-dj` or `/playlist-vennify` |
 | Codex (CLI and IDE extension) | `$<skill>`, or type `$` or `/skills` to pick it from a list |
 | Gemini CLI | no name syntax; the model picks the skill itself (see below) |
 
@@ -120,6 +124,7 @@ For example: `/text-to-playlist https://example.com/agenda, public` or `$radio-d
 - Paste the text and say "playlist from this, private"
 - "DJ my playlist Summer concerts"
 - "Introduce every song of my Friday playlist"
+- "Which tracks are on both of my road trip playlists?"
 
 In Gemini CLI the model activates the skill when your request matches its description and asks for your confirmation before it loads. In Codex a skill can also be set to run only when named (`allow_implicit_invocation: false`). If a tool does not pick up your request, name the skill.
 
@@ -132,9 +137,10 @@ Put the options in the same message, or leave them out and the skill asks only w
 - Artist and playlist names are never pasted unescaped into shell commands, and track URIs are validated before they are used.
 - `text-to-playlist` only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders. Playlists are private unless you choose public.
 - `radio-dj` plays music, but only after you say go. It plays, pauses, changes the volume and puts the next track of the list at the front of your queue, with your own queued tracks behind it. See [its page](docs/radio-dj.md#safety-and-limits) for the details.
+- `playlist-vennify` only reads when it compares. It changes your queue or creates a private playlist only after you say yes, and only with exactly the list you were shown. It never plays, pauses or skips.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 
-The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits) and [radio-dj](docs/radio-dj.md#safety-and-limits).
+The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits), [radio-dj](docs/radio-dj.md#safety-and-limits) and [playlist-vennify](docs/playlist-vennify.md#safety-and-limits).
 
 ## Repository layout
 
@@ -146,9 +152,14 @@ skills/
     SKILL.md
     scripts/
       radio.py
+  playlist-vennify/
+    SKILL.md
+    scripts/
+      vennify.py
 docs/
   text-to-playlist.md
   radio-dj.md
+  playlist-vennify.md
 README.md
 RELEASING.md
 LICENSE
