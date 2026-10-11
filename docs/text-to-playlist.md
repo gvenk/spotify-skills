@@ -53,4 +53,4 @@ You can ask for these in plain language:
 - It only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 - Artists are matched by name, then by the artist behind the release. Artists that share a name on Spotify can still be mixed up, so check the result. Artists that cannot be found are listed in the final report.
-- Tested on macOS only (see the [main README](../README.md)).
+- Tested on macOS (see the [main README](../README.md)). One user reported that it works on Windows, running the full flow with `spotify_cli.exe` on the `PATH`. Which AI tool and shell were used is not known, and the maintainer has not tested it on Windows. Linux is untested.

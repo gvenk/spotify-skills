@@ -4,7 +4,7 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 A product of [Million Pieces](https://millionpieces.nl).
 
-> **Note:** these skills have only been tested on macOS. Windows and Linux are untested and may need changes (for example, the location of `spotify_cli`).
+> **Note:** these skills have been tested on macOS. `text-to-playlist` has also been reported to work on Windows by one user (with `spotify_cli.exe` on the `PATH`); that has not been tested by the maintainer. `radio-dj` and `playlist-vennify` are untested on Windows, and all three are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
 
 ## Skills
 
@@ -28,7 +28,7 @@ The details of each skill (options, voices, safety and limits) are on its page i
 
 - The **Spotify desktop app**, installed and logged in. It ships `spotify_cli`:
   - macOS: `/Applications/Spotify.app/Contents/MacOS/spotify_cli`
-  - Windows: `spotify_cli.exe`, expected on the `PATH` (**untested**)
+  - Windows: `spotify_cli.exe`, expected on the `PATH` (reported to work with `text-to-playlist`; untested with the other skills)
 - A shell. [`jq`](https://jqlang.github.io/jq/) is optional (`text-to-playlist` only uses it for shortcuts).
 - `text-to-playlist`: a way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 - `radio-dj`: Python 3.9 or newer, and a way for the agent to search the web.
