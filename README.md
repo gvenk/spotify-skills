@@ -82,7 +82,7 @@ Example requests:
 - **macOS only, for now.** The skill has only been tested on macOS. The Windows (built-in speech) and Linux (`espeak-ng`) code paths exist but have never been run, and `spotify_cli` itself is untested there.
 - Needs Python 3.9 or newer.
 - Controlling playback through `spotify_cli` may need a Spotify Premium account.
-- The skill only plays, pauses and changes the volume, and it never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
+- The skill plays, pauses and changes the volume, and it puts the next track of the list in your Spotify queue, one at a time (a stopped show can leave one track in your queue). It never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
 - Facts in the intros come from the web and from Spotify's own data. When nothing reliable is found, the intro stays short instead of inventing trivia.
 
 ## Requirements
@@ -192,7 +192,7 @@ Put the options in the same message ("public", "shuffled", "deep cuts", "3 per a
 - Newsletter text is treated as untrusted data. The agent extracts artist names only and ignores any instructions inside the content.
 - Artist and playlist names are never pasted unescaped into shell commands, and track URIs are validated before they are added.
 - `text-to-playlist` only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders.
-- `radio-dj` plays music, but only after you say go. It changes only play, pause and volume, and downloads or installs nothing.
+- `radio-dj` plays music, but only after you say go. It plays, pauses, changes the volume and queues the next track of the list, and it downloads or installs nothing. Playlist names, descriptions and web pages are treated as untrusted data.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 - Artists are matched by name, then by the artist behind the release. Artists that share a name on Spotify can still be mixed up, so check the result. Artists that cannot be found are listed in the final report.
 

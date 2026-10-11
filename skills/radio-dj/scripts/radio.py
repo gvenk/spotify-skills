@@ -36,6 +36,15 @@ import wave
 TRACK_URI = re.compile(r"^spotify:track:[A-Za-z0-9]{22}$")
 
 
+def child_env(**extra):
+    """Environment for the programs this script starts (say, afplay, spotify_cli, ...).
+
+    OPENAI_API_KEY is only for this process: none of those programs needs it."""
+    env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+    env.update(extra)
+    return env
+
+
 def die(msg, code=1):
     print("error: " + msg, file=sys.stderr)
     sys.exit(code)
@@ -50,7 +59,7 @@ def mac_voice_candidates(language):
     """Installed macOS voices for the language, best first, so Dutch system settings
     do not make `say` read English text with a Dutch voice."""
     try:
-        out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, check=True).stdout
+        out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, check=True, env=child_env()).stdout
     except (subprocess.CalledProcessError, FileNotFoundError):
         return []
     voices = []  # (name, locale)
@@ -90,11 +99,11 @@ def os_synth(text, out_path, language=None, voice=None):
             voice = voice or os.environ.get("RADIO_DJ_OS_VOICE") or (mac_voice(language) if language else None)
             if voice:
                 cmd += ["-v", voice]
-            subprocess.run(cmd + ["--", text], check=True)
+            subprocess.run(cmd + ["--", text], check=True, env=child_env())
         elif os.name == "nt":
             # Text and paths travel in environment variables, never inside the command line.
-            env = dict(os.environ, RADIO_TEXT=text, RADIO_OUT=out_path,
-                       RADIO_CULTURE=WINDOWS_CULTURE.get(language or "", language or ""), RADIO_VOICE=voice or "")
+            env = child_env(RADIO_TEXT=text, RADIO_OUT=out_path,
+                            RADIO_CULTURE=WINDOWS_CULTURE.get(language or "", language or ""), RADIO_VOICE=voice or "")
             ps = ("Add-Type -AssemblyName System.Speech; "
                   "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
                   "try { if ($env:RADIO_VOICE) { $s.SelectVoice($env:RADIO_VOICE) } "
@@ -112,7 +121,7 @@ def os_synth(text, out_path, language=None, voice=None):
             voice = voice or language  # espeak voice names: "nl", "en"
             if voice:
                 cmd += ["-v", voice]
-            subprocess.run(cmd + ["--", text], check=True)
+            subprocess.run(cmd + ["--", text], check=True, env=child_env())
         return os.path.exists(out_path)
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
@@ -440,7 +449,7 @@ def spotify_cli():
 
 
 def cli(*cli_args, check=True):
-    r = subprocess.run([spotify_cli()] + list(cli_args), capture_output=True, text=True)
+    r = subprocess.run([spotify_cli()] + list(cli_args), capture_output=True, text=True, env=child_env())
     if check and r.returncode != 0:
         raise RuntimeError("spotify_cli %s failed: %s" % (" ".join(cli_args), (r.stderr or r.stdout).strip()))
     return r.stdout
@@ -473,15 +482,15 @@ def wav_seconds(path):
 
 def play_wav(path):
     if sys.platform == "darwin":
-        subprocess.run(["afplay", path], check=False)
+        subprocess.run(["afplay", path], check=False, env=child_env())
     elif os.name == "nt":
-        env = dict(os.environ, RADIO_WAV=path)
+        env = child_env(RADIO_WAV=path)
         subprocess.run(["powershell", "-NoProfile", "-Command",
                         "(New-Object System.Media.SoundPlayer $env:RADIO_WAV).PlaySync()"], check=False, env=env)
     else:
         for exe, extra in (("paplay", []), ("aplay", ["-q"]), ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"])):
             if shutil.which(exe):
-                subprocess.run([exe] + extra + [path], check=False)
+                subprocess.run([exe] + extra + [path], check=False, env=child_env())
                 return
         print("No audio player found (paplay, aplay, ffplay).", file=sys.stderr)
 
