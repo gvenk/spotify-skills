@@ -5,7 +5,7 @@ Standard library only (Python 3.9+). Speech comes from the operating system's ow
 voice, so nothing is downloaded or installed. Tested on macOS only.
 
 Commands:
-  synth    --script FILE --out-dir DIR [--language nl|en] [--os-voice NAME]
+  synth    --script FILE --out-dir DIR [--language nl|en] [--os-voice NAME] [--one-voice]
            (text may contain {en:English name} to speak that part with an English voice)
   probe                                      print the raw now-playing JSON
   run      --tracks FILE [--mode duck|gap] [--duck-level 0.5] [--preview SECONDS]
@@ -142,7 +142,10 @@ def join_wavs(paths, out_path, gap_s=0.08):
     return True
 
 
-def synth_text(text, out_path, language, voice):
+def synth_text(text, out_path, language, voice, one_voice=False):
+    if one_voice:
+        # No voice switching: the tags are dropped and everything is read by the main voice.
+        text = SEGMENT.sub(lambda m: m.group(2), text)
     segments = split_segments(text, language)
     if not segments:
         return False
@@ -173,7 +176,7 @@ def cmd_synth(args):
         if not re.match(r"^[A-Za-z0-9_-]+$", iid):
             die("Bad intro id %r" % iid)
         out = os.path.join(args.out_dir, iid + ".wav")
-        ok = synth_text(str(item["text"]), out, args.language, args.os_voice)
+        ok = synth_text(str(item["text"]), out, args.language, args.os_voice, args.one_voice)
         result.append({"id": iid, "file": out if ok else None})
         print("%s %s" % ("ok " if ok else "FAIL", iid))
     with open(os.path.join(args.out_dir, "index.json"), "w") as f:
@@ -403,6 +406,7 @@ def main():
     sp.add_argument("--out-dir", required=True)
     sp.add_argument("--language", help="two-letter language code (nl, en, ...); picks a voice for it")
     sp.add_argument("--os-voice", help="exact voice name from your system (macOS: `say -v ?`)")
+    sp.add_argument("--one-voice", action="store_true", help="read {xx:name} parts with the main voice too (no voice switching)")
     sp.set_defaults(fn=cmd_synth)
     sp = sub.add_parser("probe"); sp.set_defaults(fn=cmd_probe)
     sp = sub.add_parser("run")

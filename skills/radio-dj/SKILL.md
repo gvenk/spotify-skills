@@ -36,6 +36,8 @@ Nothing plays until you say go.
 Options (all optional):
   language     any language your computer has a voice for (default: the language of your request)
   tracks       how many tracks (default: all, up to 30; I ask above that)
+  one voice    off by default; say "one voice" so English names inside a Dutch intro (and the reverse)
+               are read by the same voice, with its accent, instead of switching voices
   show texts   off by default; say "show me the intros first" to read and change them before the show
   show notes   off by default; say "write show notes" to get a Markdown file with the running order,
                the intro texts and the sources
@@ -68,7 +70,7 @@ Resolve the playlist to a `spotify:playlist:...` URI. A name is found with `"$SP
 
 Read the JSON yourself and take each track's URI, title and artist(s). Keep only URIs that match `^spotify:track:[A-Za-z0-9]{22}$`; skip episodes, local files and anything else, and keep only the first copy of a track that appears twice. Mention what you skipped in the report. If the playlist cannot be read, say so; do not look for a workaround. `playlist get` reads playlists in the user's library, including ones they do not own and Spotify-made ones such as Release Radar (tested). A playlist that is not in the library, or is private, fails with the misleading error `client connection failed`: ask the user to add it to their library first.
 
-Settings: language (default: the language of the request), number of tracks (default all; if there are more than **30**, ask first, because research and speech take time), intro length, transition (`duck` by default, or `gap`), show texts (off by default; on when the user asks to see or approve the intros first), and show notes (off by default; on when the user asks for them).
+Settings: language (default: the language of the request), number of tracks (default all; if there are more than **30**, ask first, because research and speech take time), intro length, transition (`duck` by default, or `gap`), one voice (off by default; on when the user finds the voice switching strange or asks for "one voice"), show texts (off by default; on when the user asks to see or approve the intros first), and show notes (off by default; on when the user asks for them).
 
 ### 2. Research (web)
 
@@ -100,12 +102,12 @@ The intros are spoken with the voice of the operating system. Nothing is downloa
 - **Windows** (untested): the built-in speech voices, chosen by language when one is installed for it. If there is none, the script says so and uses the default voice.
 - **Linux** (untested): `espeak-ng` or `espeak` (install it first), with the language as the voice name.
 
-The voice sounds fairly robotic. On macOS a better one is a free download: **System Settings → Accessibility → Spoken Content → System voice → Manage Voices**, then pick the Premium or Enhanced version of a voice for the language (100 to 500 MB each, downloaded by macOS, not by this skill). After that the script uses it automatically, or name it with `--os-voice`. Mention this to the user once, if they find the voice too robotic.
+The voice sounds fairly robotic. On macOS you can download more voices for free: **System Settings → Accessibility → Read & Speak**, click the **ⓘ** button next to **System voice**, pick a language, pick a voice and click **Download** if it is offered (older macOS versions: Accessibility → Spoken Content → System voice → Manage Voices). Which voices exist differs per language and macOS version, and not every one is labelled Premium or Enhanced. After the download, `say -v '?'` lists it, and the script prefers voices marked Premium or Enhanced; to use any other voice, name it with `--os-voice`. Mention this to the user once, if they find the voice too robotic.
 
 Write the intros as a JSON file (with the file-write tool, never with shell `echo`): `[{"id": "01", "text": "..."}, ...]` with ids `01`, `02`, ... in track order. Then, in a fresh temporary folder:
 
 ```bash
-python3 "$RADIO" synth --script intros.json --out-dir <tmpdir> --language nl
+python3 "$RADIO" synth --script intros.json --out-dir <tmpdir> --language nl [--one-voice]
 ```
 
 Each intro becomes `<id>.wav`. If any fail, say which and drop those intros (the track then plays without one). If every intro fails, stop and tell the user why (for example, no speech engine on Linux).
@@ -122,7 +124,7 @@ Rules:
 - Mark only text that is clearly in another language: English song and album titles, English band names. Leave names that are fine in the intro's language alone (a Dutch name in a Dutch intro).
 - Do not nest tags or put braces in the text for any other reason. Keep the marked parts short: the title or name, not whole sentences.
 - Remove brackets from marked titles (`{en:Sly, Like Ever}` for "Sly (Like Ever)"), so the voice does not read them out.
-- You hear the voice change, as with a bilingual host. Say so once to the user.
+- You hear the voice change, as with a bilingual host. Say so once to the user, and mention the one-voice setting: with `--one-voice` the script drops the tags and the main voice reads everything, so there is no switch, but names in the other language get the accent of the main voice.
 - It works the same on every system, but a voice for the second language must be installed. If it is not, the default voice is used for that part.
 
 ### 6. Prepare the run, then ask to start
