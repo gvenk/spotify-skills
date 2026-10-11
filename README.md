@@ -82,7 +82,7 @@ Example requests:
 - **macOS only, for now.** The skill has only been tested on macOS. The Windows (built-in speech) and Linux (`espeak-ng`) code paths exist but have never been run, and `spotify_cli` itself is untested there.
 - Needs Python 3.9 or newer.
 - Controlling playback through `spotify_cli` may need a Spotify Premium account.
-- The skill plays, pauses and changes the volume, and it puts the next track of the list in your Spotify queue, one at a time (when the show ends or you stop it, the track that was queued but never started is taken out again). It never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
+- The skill plays, pauses and changes the volume, and it puts the next track of the list at the front of your Spotify queue, one at a time (your own queued tracks stay behind it; after the last track the first of them starts and is paused) (when the show ends or you stop it, the track that was queued but never started is taken out again). It never starts playing without your go-ahead. Ctrl+C stops it and restores the volume.
 - Facts in the intros come from the web and from Spotify's own data. When nothing reliable is found, the intro stays short instead of inventing trivia.
 
 ## Requirements

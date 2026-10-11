@@ -511,6 +511,18 @@ def read_state(np):
     return cur.get("uri"), bool(cur.get("is_playing"))
 
 
+def put_first(uri):
+    """`queue add` appends to the end of the user's own queue, so anything already queued would play
+    first. Move the next track of the show to the front; the user's tracks stay behind it."""
+    try:
+        q = json.loads(cli("queue", "list", "--format", "json", check=False) or "{}")
+    except ValueError:
+        return
+    spots = [k for k, e in enumerate(q.get("next_tracks", [])) if e.get("provider") == "queue" and e.get("uri") == uri]
+    if spots and spots[-1] > 0:
+        cli("queue", "move", str(spots[-1]), "0", check=False)
+
+
 def wav_seconds(path):
     with wave.open(path, "rb") as w:
         return w.getnframes() / float(w.getframerate())
@@ -617,6 +629,7 @@ def cmd_run(args):
             cli("seek", str(int(tracks[k]["duration_ms"] - args.preview * 1000)), check=False)
         if k + 1 < n and queued[0] < k + 1:
             cli("queue", "add", tracks[k + 1]["uri"])
+            put_first(tracks[k + 1]["uri"])
             queued[0] = k + 1
             pending[0] = tracks[k + 1]["uri"]
         return (tracks[k]["duration_ms"] / 1000.0 - args.preview) if (args.preview and tracks[k]["duration_ms"] / 1000.0 > args.preview + 5) else 0.0
