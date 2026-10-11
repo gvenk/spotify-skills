@@ -68,7 +68,7 @@ Example requests:
 - "Play this playlist like a radio show, in English, short intros"
 - "Introduce every song of my Friday playlist, first 10 tracks"
 
-**Voice.** The intros are spoken with your computer's own voice. Nothing is downloaded or installed. On macOS the skill picks a voice that matches the language of the intros, preferring Premium and Enhanced voices you have installed. The default voices sound fairly robotic; for a better one, download a Premium or Enhanced voice in *System Settings → Accessibility → Spoken Content → System voice → Manage Voices*.
+**Voice.** The intros are spoken with your computer's own voice. Nothing is downloaded or installed. On macOS the skill picks a voice that matches the language of the intros, preferring Premium and Enhanced voices you have installed. Titles and names in another language (English song titles in a Dutch intro) are spoken by a voice for their own language, so you hear the voice change, like a bilingual host. The default voices sound fairly robotic; for a better one, download a Premium or Enhanced voice in *System Settings → Accessibility → Spoken Content → System voice → Manage Voices*.
 
 **Limits.**
 - **macOS only, for now.** The skill has only been tested on macOS. The Windows (built-in speech) and Linux (`espeak-ng`) code paths exist but have never been run, and `spotify_cli` itself is untested there.

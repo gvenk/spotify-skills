@@ -6,6 +6,7 @@ voice, so nothing is downloaded or installed. Tested on macOS only.
 
 Commands:
   synth    --script FILE --out-dir DIR [--language nl|en] [--os-voice NAME]
+           (text may contain {en:English name} to speak that part with an English voice)
   probe                                      print the raw now-playing JSON
   run      --tracks FILE [--mode duck|gap] [--duck-level 0.5] [--preview SECONDS]
                          [--volume 1.0] [--device NAME]
@@ -102,6 +103,66 @@ def os_synth(text, out_path, language=None, voice=None):
         return False
 
 
+SEGMENT = re.compile(r"\{([a-z]{2}):([^{}]*)\}")
+
+
+def split_segments(text, default_language):
+    """Split "Dutch text {en:English name} more Dutch" into [(language, text), ...].
+
+    A single-language voice mangles names from another language, so tagged parts
+    are spoken by a voice for their own language."""
+    parts, pos = [], 0
+    for m in SEGMENT.finditer(text):
+        parts.append((default_language, text[pos:m.start()]))
+        parts.append((m.group(1), m.group(2)))
+        pos = m.end()
+    parts.append((default_language, text[pos:]))
+    cleaned = []
+    for lang, chunk in parts:
+        chunk = " ".join(chunk.replace("{", " ").replace("}", " ").split())
+        if chunk:
+            cleaned.append((lang, chunk))
+    return cleaned
+
+
+def join_wavs(paths, out_path, gap_s=0.08):
+    """Concatenate wav files that share one format, with a short pause between them."""
+    params, frames = None, []
+    for p in paths:
+        with wave.open(p, "rb") as w:
+            if params is None:
+                params = w.getparams()
+            elif (w.getnchannels(), w.getsampwidth(), w.getframerate()) != params[:3]:
+                return False  # different formats cannot be joined here
+            frames.append(w.readframes(w.getnframes()))
+    silence = b"\x00" * int(params.framerate * gap_s) * params.nchannels * params.sampwidth
+    with wave.open(out_path, "wb") as out:
+        out.setparams(params)
+        out.writeframes(silence.join(frames))
+    return True
+
+
+def synth_text(text, out_path, language, voice):
+    segments = split_segments(text, language)
+    if not segments:
+        return False
+    if len(segments) == 1:
+        return os_synth(segments[0][1], out_path, segments[0][0], voice if segments[0][0] == language else None)
+    pieces = []
+    for n, (lang, chunk) in enumerate(segments):
+        piece = "%s.part%d.wav" % (out_path, n)
+        # An explicit --os-voice applies to the main language only.
+        if not os_synth(chunk, piece, lang, voice if lang == language else None):
+            for p in pieces:
+                os.remove(p)
+            return False
+        pieces.append(piece)
+    ok = join_wavs(pieces, out_path)
+    for p in pieces:
+        os.remove(p)
+    return ok
+
+
 def cmd_synth(args):
     with open(args.script, encoding="utf-8") as f:
         items = json.load(f)  # [{"id": "01", "text": "..."}]
@@ -112,8 +173,7 @@ def cmd_synth(args):
         if not re.match(r"^[A-Za-z0-9_-]+$", iid):
             die("Bad intro id %r" % iid)
         out = os.path.join(args.out_dir, iid + ".wav")
-        text = " ".join(str(item["text"]).split())
-        ok = os_synth(text, out, args.language, args.os_voice)
+        ok = synth_text(str(item["text"]), out, args.language, args.os_voice)
         result.append({"id": iid, "file": out if ok else None})
         print("%s %s" % ("ok " if ok else "FAIL", iid))
     with open(os.path.join(args.out_dir, "index.json"), "w") as f:

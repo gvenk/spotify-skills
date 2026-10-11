@@ -72,7 +72,7 @@ For each track, search the web for **2 or 3 facts** about the artist and the son
 Write one intro per track, as a radio host speaks:
 - 2 to 3 sentences by default (1 to 2 short, 4 to 5 long). About 10 to 20 seconds when read aloud.
 - Mention the artist and the title of the track that is coming up. Do not describe the previous track.
-- Plain spoken text only: no markdown, emoji, URLs, brackets or abbreviations that are hard to read aloud. Write numbers and years the way they are said.
+- Plain spoken text only: no markdown, emoji, URLs, brackets or abbreviations that are hard to read aloud. Write numbers and years the way they are said. The only markup allowed is `{xx:name}` for names in another language (step 5).
 - The first intro may open the show; the last track may get a closing line.
 
 **Show all intros to the user and ask whether to continue or change something.** Nothing is synthesized and nothing is played before they agree. If you cannot ask, stop after showing the intros and tell the user how to continue.
@@ -95,9 +95,20 @@ python3 "$RADIO" synth --script intros.json --out-dir <tmpdir> --language nl
 
 Each intro becomes `<id>.wav`. If any fail, say which and drop those intros (the track then plays without one). If every intro fails, stop and tell the user why (for example, no speech engine on Linux).
 
-### 5. Check English names
+### 5. Mark names from another language
 
-The voice reads the text as the language it is set to. For English titles and artist names inside a Dutch intro (and the other way around), write them as they are spoken, and warn the user once that names in another language may sound odd.
+A voice speaks one language. Titles, artist names and album names in another language (English ones inside a Dutch intro, for example) come out with a strong accent. Mark them in the intro text as `{xx:name}`, with the two-letter language code, and the script speaks that part with a voice for that language and joins the audio:
+
+```
+Touchdown komt van het album {en:The Fear That This Is Real}, dat op negen oktober uitkwam.
+```
+
+Rules:
+- Mark only text that is clearly in another language: English song and album titles, English band names. Leave names that are fine in the intro's language alone (a Dutch name in a Dutch intro).
+- Do not nest tags or put braces in the text for any other reason. Keep the marked parts short: the title or name, not whole sentences.
+- Remove brackets from marked titles (`{en:Sly, Like Ever}` for "Sly (Like Ever)"), so the voice does not read them out.
+- You hear the voice change, as with a bilingual host. Say so once to the user.
+- It works the same on every system, but a voice for the second language must be installed. If it is not, the default voice is used for that part.
 
 ### 6. Prepare the run, then ask to start
 
