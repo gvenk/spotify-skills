@@ -14,13 +14,14 @@ This repository currently contains **three skills**. More may follow.
 |-------|--------------|---------|
 | [`text-to-playlist`](skills/text-to-playlist/SKILL.md) | Turns any text that mentions artists (newsletter, agenda, festival line-up, article, review; URL or pasted text) into a Spotify playlist, private or public as you choose. | [docs/text-to-playlist.md](docs/text-to-playlist.md) |
 | [`radio-dj`](skills/radio-dj/SKILL.md) | Plays a playlist like a radio show: researches each artist and song on the web and speaks a short intro before every track. Optional OpenAI voice. | [docs/radio-dj.md](docs/radio-dj.md) |
-| [`playlist-vennify`](skills/playlist-vennify/SKILL.md) | Compares two or more playlists like a Venn diagram (overlap, unique tracks, combined, in at least N) and adds the result to your queue or saves it as a new private playlist. | [docs/playlist-vennify.md](docs/playlist-vennify.md) |
+| [`playlist-vennify`](skills/playlist-vennify/SKILL.md) | Compares two or more playlists or albums like a Venn diagram (overlap, unique tracks, combined, in at least N) and adds the result to your queue or saves it as a new private playlist. | [docs/playlist-vennify.md](docs/playlist-vennify.md) |
 
 Example requests:
 
 - "Make a playlist from this newsletter: `https://example.com/agenda`" (`text-to-playlist`)
 - "DJ my playlist *Summer concerts*" (`radio-dj`)
 - "What do *Summer 2025* and *Road trip* have in common?" (`playlist-vennify`)
+- "Mix the latest album of two artists and queue it shuffled" (`playlist-vennify`)
 
 The details of each skill (options, voices, safety and limits) are on its page in [`docs/`](docs/).
 
@@ -32,7 +33,7 @@ The details of each skill (options, voices, safety and limits) are on its page i
 - A shell. [`jq`](https://jqlang.github.io/jq/) is optional (`text-to-playlist` only uses it for shortcuts).
 - `text-to-playlist`: a way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 - `radio-dj`: Python 3.9 or newer, and a way for the agent to search the web.
-- `playlist-vennify`: Python 3.9 or newer. The playlists have to be in your Spotify library.
+- `playlist-vennify`: Python 3.9 or newer. Playlists have to be in your Spotify library; albums don't.
 
 ## Which tools can use it
 

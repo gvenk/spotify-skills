@@ -6,7 +6,8 @@ Standard library only (Python 3.9+). It talks to the Spotify desktop app through
 the user's Spotify and need the confirmation code of the exact list that was shown.
 
 Commands:
-  compare   --playlist NAME|URI|URL (2 or more) --select overlap|unique|union|atleast
+  compare   --playlist NAME|URI|URL (also spotify:album: URIs and album links) and/or
+            --latest-album ARTIST (2 sources or more in all) --select overlap|unique|union|atleast
             [--min N] [--only A] [--match exact|song] [--order playlist|shuffle|interleave]
             --out FILE                      read the playlists, compare, write the selection
   queue     --selection FILE --confirm CODE [--position end|front] [--max-tracks 50] [--dry-run]
@@ -26,6 +27,8 @@ import unicodedata
 
 TRACK_URI = re.compile(r"spotify:track:[A-Za-z0-9]{22}")
 PLAYLIST_URI = re.compile(r"spotify:playlist:[A-Za-z0-9]+")
+ALBUM_URI = re.compile(r"spotify:album:[A-Za-z0-9]+")
+ALBUM_URL = re.compile(r"https://open\.spotify\.com/(?:intl-[a-z]+/)?album/([A-Za-z0-9]+)(?:[?#].*)?")
 PLAYLIST_URL = re.compile(r"https://open\.spotify\.com/(?:intl-[a-z]+/)?playlist/([A-Za-z0-9]+)(?:[?#].*)?")
 LABELS = "ABCDEFGHIJ"
 MAX_PLAYLISTS = len(LABELS)
@@ -94,8 +97,11 @@ def resolve(ref):
     ref = ref.strip()
     if not ref:
         die("A playlist name is empty.")
-    if PLAYLIST_URI.fullmatch(ref):
+    if PLAYLIST_URI.fullmatch(ref) or ALBUM_URI.fullmatch(ref):
         return ref
+    m = ALBUM_URL.fullmatch(ref)
+    if m:
+        return "spotify:album:" + m.group(1)
     m = PLAYLIST_URL.fullmatch(ref)
     if m:
         return "spotify:playlist:" + m.group(1)
@@ -117,6 +123,43 @@ def resolve(ref):
     die("%d playlists match %r. Ask the user which one, and use its URI." % (len(hits), ref), 6)
 
 
+def date_key(value):
+    """'2026-10-2', '2026-10' or '2026' -> (2026, 10, 2); unknown parts count as 0."""
+    parts = [int(x) if x.isdigit() else 0 for x in str(value).split("-")[:3]]
+    return tuple(parts + [0] * (3 - len(parts)))
+
+
+def latest_album(artist):
+    """The newest full album (not a single or EP) of an artist -> (uri, name, release_date)."""
+    artist = artist.strip()
+    if not artist:
+        die("An artist name is empty.")
+    want = artist.casefold()
+    try:
+        found = cli_json("search", artist, "--type", "artist", "--limit", "10").get("artists", [])
+        same = [a for a in found if str(a.get("name", "")).casefold() == want and a.get("uri")]
+        if len(same) > 1:
+            print(json.dumps({"ambiguous": artist, "candidates": [{"name": clean_text(a["name"]), "uri": a["uri"]} for a in same[:20]]}, ensure_ascii=False))
+            die("%d artists are named %r. Ask the user which one." % (len(same), artist), 6)
+        if not same:
+            die("No artist named %r found." % artist, 7)
+        albums = cli_json("search", artist, "--type", "album", "--limit", "50").get("albums", [])
+        uris = list(dict.fromkeys(a["uri"] for a in albums
+                                  if ALBUM_URI.fullmatch(str(a.get("uri", ""))) and any(str(n).casefold() == want for n in a.get("artists", []))))
+        found_albums = []
+        for i in range(0, len(uris), 20):
+            for e in cli_json("lookup", *uris[i:i + 20], "--fields", "release_date").get("entities", []):
+                date = next((m.get("value") for m in e.get("metadata", []) if m.get("field") == "release_date"), None)
+                if date and str(e.get("type", "")).casefold() == "album":  # singles and EPs are skipped
+                    found_albums.append((date_key(date), e["uri"], clean_text(e.get("name", "")), str(date)))
+    except CliError as e:
+        die("Could not look up the albums of %r: %s" % (artist, e), 5)
+    if not found_albums:
+        die("No full album found for %r." % artist, 7)
+    _, uri, name, date = max(found_albums)
+    return uri, name, date
+
+
 def read_playlist(uri):
     try:
         d = cli_json("playlist", "get", uri)
@@ -134,12 +177,18 @@ def read_playlist(uri):
     return d
 
 
-def load_playlists(refs):
-    if not 2 <= len(refs) <= MAX_PLAYLISTS:
-        die("Give between 2 and %d playlists." % MAX_PLAYLISTS)
+def load_playlists(refs, artists=()):
+    """Playlists (or albums), then the latest album of each artist; each source gets a label."""
+    if not 2 <= len(refs) + len(artists) <= MAX_PLAYLISTS:
+        die("Give between 2 and %d playlists or albums." % MAX_PLAYLISTS)
     uris = [resolve(r) for r in refs]
+    latest = {}
+    for a in artists:
+        uri, name, date = latest_album(a)
+        uris.append(uri)
+        latest[uri] = {"artist": clean_text(a), "album": name, "release_date": date}
     if len(set(uris)) != len(uris):
-        die("The same playlist is given twice.")
+        die("The same playlist or album is given twice.")
     pls = []
     for k, uri in enumerate(uris):
         d = read_playlist(uri)
@@ -155,9 +204,9 @@ def load_playlists(refs):
             seen.add(u)
             tracks.append({"uri": u, "name": clean_text(t.get("name", "")), "artists": [clean_text(a) for a in t.get("artists", [])],
                            "album": clean_text(t.get("album", ""))})
-        pls.append({"label": LABELS[k], "name": clean_text(d.get("name") or uri), "uri": uri, "owner": clean_text(d.get("owner") or ""),
+        pls.append({"label": LABELS[k], "kind": "album" if uri.startswith("spotify:album:") else "playlist", "name": clean_text(d.get("name") or uri), "uri": uri, "owner": clean_text(d.get("owner") or ""),
                     "tracks": tracks, "skipped_not_tracks": skipped, "duplicates_in_playlist": dups,
-                    "declared_track_count": d.get("track_count")})
+                    "declared_track_count": d.get("track_count")} | ({"latest_album_of": latest[uri]} if uri in latest else {}))
     return pls
 
 
@@ -238,8 +287,7 @@ def write_private(path, data):
 
 
 def cmd_compare(args):
-    refs = args.playlist or []
-    pls = load_playlists(refs)
+    pls = load_playlists(args.playlist or [], args.latest_album or [])
     labels = [p["label"] for p in pls]
     entries = group(pls, args.match)
     regions = {}
@@ -381,7 +429,8 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("compare")
-    sp.add_argument("--playlist", action="append", required=True, help="name, spotify:playlist: URI or open.spotify.com link; give 2 or more")
+    sp.add_argument("--playlist", action="append", help="name, spotify:playlist: / spotify:album: URI or open.spotify.com link")
+    sp.add_argument("--latest-album", action="append", metavar="ARTIST", help="the newest full album of this artist (singles and EPs are skipped)")
     sp.add_argument("--select", choices=["overlap", "unique", "union", "atleast"], required=True)
     sp.add_argument("--min", type=int, default=2, help="with atleast: in how many playlists at least")
     sp.add_argument("--only", help="with unique: only the tracks unique to this label (A, B, ...)")
