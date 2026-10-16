@@ -109,6 +109,10 @@ def resolve(ref):
         items = cli_json("library", "list", "--type", "playlist", "--limit", "2000").get("items", [])
     except CliError as e:
         die("Could not list your playlists: %s" % e, 5)
+    try:  # `library list` only returns the top level: playlists inside folders are in the folder hierarchy
+        items = items + [i for i in cli_json("folder", "list", "--recursive").get("items", []) if i.get("type") == "playlist"]
+    except CliError:
+        pass
     named = [(i.get("name", ""), i["uri"]) for i in items if i.get("uri") and PLAYLIST_URI.fullmatch(i["uri"]) and i.get("name")]
     want = ref.casefold()
     hits = [(n, u) for n, u in named if n.casefold() == want]

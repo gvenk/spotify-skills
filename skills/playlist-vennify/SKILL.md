@@ -40,7 +40,7 @@ Options (all optional):
   result       a report (always), the queue (end or front), a new private playlist
 ```
 
-Playlists have to be in the user's Spotify library (saved or followed). Spotify-made playlists such as Release Radar work too. Albums do not need to be in the library.
+Playlists have to be in the user's Spotify library (saved or followed); playlists inside folders count too. Spotify-made playlists such as Release Radar work too. Albums do not need to be in the library.
 
 ## Requirements
 

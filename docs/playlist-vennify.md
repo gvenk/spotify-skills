@@ -21,7 +21,7 @@ Example requests:
 - "Combine *A* and *B* without duplicates into a new playlist"
 - "Mix the latest album of Froukje and De Staat, shuffled, at the end of my queue"
 
-Playlists have to be in your Spotify library (saved or followed). Albums don't: give an album link, or ask for the latest album of an artist. Spotify-made playlists such as Release Radar work too. If a name matches several playlists, the skill lists them and asks which one you mean.
+Playlists have to be in your Spotify library (saved or followed); playlists inside folders count too. Albums don't: give an album link, or ask for the latest album of an artist. Spotify-made playlists such as Release Radar work too. If a name matches several playlists, the skill lists them and asks which one you mean.
 
 ## Albums
 
