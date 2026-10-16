@@ -4,17 +4,18 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 A product of [Million Pieces](https://millionpieces.nl).
 
-> **Note:** these skills have been tested on macOS. `text-to-playlist` has also been reported to work on Windows by one user (with `spotify_cli.exe` on the `PATH`); that has not been tested by the maintainer. `radio-dj` and `playlist-vennify` are untested on Windows, and all three are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
+> **Note:** these skills have been tested on macOS. `text-to-playlist` has also been reported to work on Windows by one user (with `spotify_cli.exe` on the `PATH`); that has not been tested by the maintainer. `radio-dj`, `playlist-vennify` and `playlist-watch` are untested on Windows, and all four are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
 
 ## Skills
 
-This repository currently contains **three skills**. More may follow.
+This repository currently contains **four skills**. More may follow.
 
 | Skill | What it does | Details |
 |-------|--------------|---------|
 | [`text-to-playlist`](skills/text-to-playlist/SKILL.md) | Turns any text that mentions artists (newsletter, agenda, festival line-up, article, review; URL or pasted text) into a Spotify playlist, private or public as you choose. | [docs/text-to-playlist.md](docs/text-to-playlist.md) |
 | [`radio-dj`](skills/radio-dj/SKILL.md) | Plays a playlist like a radio show: researches each artist and song on the web and speaks a short intro before every track. Optional OpenAI voice. | [docs/radio-dj.md](docs/radio-dj.md) |
 | [`playlist-vennify`](skills/playlist-vennify/SKILL.md) | Compares two or more playlists or albums like a Venn diagram (overlap, unique tracks, combined, in at least N) and adds the result to your queue or saves it as a new private playlist. | [docs/playlist-vennify.md](docs/playlist-vennify.md) |
+| [`playlist-watch`](skills/playlist-watch/SKILL.md) | Shows what changed in your playlists since you last looked (tracks added and removed). Watch all your playlists or only a few, then put the new tracks in your queue or a playlist. Keeps its snapshots in a data folder you can delete. | [docs/playlist-watch.md](docs/playlist-watch.md) |
 
 Example requests:
 
@@ -22,6 +23,7 @@ Example requests:
 - "DJ my playlist *Summer concerts*" (`radio-dj`)
 - "What do *Summer 2025* and *Road trip* have in common?" (`playlist-vennify`)
 - "Mix the latest album of two artists and queue it shuffled" (`playlist-vennify`)
+- "What changed in my playlists since last week?" (`playlist-watch`)
 
 The details of each skill (options, voices, safety and limits) are on its page in [`docs/`](docs/).
 
@@ -34,6 +36,7 @@ The details of each skill (options, voices, safety and limits) are on its page i
 - `text-to-playlist`: a way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 - `radio-dj`: Python 3.9 or newer, and a way for the agent to search the web.
 - `playlist-vennify`: Python 3.9 or newer. Playlists have to be in your Spotify library; albums don't.
+- `playlist-watch`: Python 3.9 or newer. It stores its snapshots in a folder on your computer (see below). Public playlists outside your library work, given by link.
 
 ## Which tools can use it
 
@@ -58,12 +61,13 @@ If a tool cannot run commands on your computer, the skills cannot control Spotif
 | text-to-playlist | [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip) | `text-to-playlist` |
 | radio-dj | [radio-dj.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/radio-dj.zip) | `radio-dj` |
 | playlist-vennify | [playlist-vennify.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-vennify.zip) | `playlist-vennify` |
+| playlist-watch | [playlist-watch.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-watch.zip) | `playlist-watch` |
 
 All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
 
 If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skills are the folders under `skills/` inside it) or clone it with git.
 
-In the commands below, `<skill>` is `text-to-playlist`, `radio-dj` or `playlist-vennify`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj` and `playlist-vennify` are a `SKILL.md` and a `scripts/` folder.
+In the commands below, `<skill>` is `text-to-playlist`, `radio-dj`, `playlist-vennify` or `playlist-watch`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj`, `playlist-vennify` and `playlist-watch` are a `SKILL.md` and a `scripts/` folder.
 
 Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
 
@@ -112,7 +116,7 @@ There are two ways to call a skill. The second works in every tool.
 
 | Tool | How to call it |
 |------|----------------|
-| Claude Code | `/<skill>`, for example `/text-to-playlist`, `/radio-dj` or `/playlist-vennify` |
+| Claude Code | `/<skill>`, for example `/text-to-playlist`, `/radio-dj`, `/playlist-vennify` or `/playlist-watch` |
 | Codex (CLI and IDE extension) | `$<skill>`, or type `$` or `/skills` to pick it from a list |
 | Gemini CLI | no name syntax; the model picks the skill itself (see below) |
 
@@ -139,9 +143,14 @@ Put the options in the same message, or leave them out and the skill asks only w
 - `text-to-playlist` only creates playlists and folders, and adds tracks. It does not play music, delete playlists, or remove folders. Playlists are private unless you choose public.
 - `radio-dj` plays music, but only after you say go. It plays, pauses, changes the volume and puts the next track of the list at the front of your queue, with your own queued tracks behind it. See [its page](docs/radio-dj.md#safety-and-limits) for the details.
 - `playlist-vennify` only reads when it compares. It changes your queue or creates a private playlist only after you say yes (the skill is instructed to ask first), and the script checks that it acts on exactly the list you were shown. It never plays, pauses or skips.
+- `playlist-watch` only reads when it checks. It changes your queue or a playlist of yours only after you say yes (the skill is instructed to ask first), and an overwrite saves the old content first. It keeps a small data folder on your computer, see below. It never plays, pauses or skips.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 
-The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits), [radio-dj](docs/radio-dj.md#safety-and-limits) and [playlist-vennify](docs/playlist-vennify.md#safety-and-limits).
+The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits), [radio-dj](docs/radio-dj.md#safety-and-limits) and [playlist-vennify](docs/playlist-vennify.md#safety-and-limits) and [playlist-watch](docs/playlist-watch.md#safety-and-limits).
+
+### Data kept by `playlist-watch`
+
+`playlist-watch` is the only skill that stores anything. It keeps its watch list, a snapshot of every watched playlist and (before an overwrite) a backup in a folder of its own: `~/.local/share/playlist-watch/` on macOS and Linux (`%LOCALAPPDATA%\playlist-watch\` on Windows, untested). It holds no passwords or keys and nothing is sent anywhere. **If you remove the skill, remove this folder too:** ask the skill to *forget everything*, or run `rm -r ~/.local/share/playlist-watch`. More in [its page](docs/playlist-watch.md#your-data-and-how-to-remove-it).
 
 ## Repository layout
 
@@ -157,10 +166,15 @@ skills/
     SKILL.md
     scripts/
       vennify.py
+  playlist-watch/
+    SKILL.md
+    scripts/
+      watch.py
 docs/
   text-to-playlist.md
   radio-dj.md
   playlist-vennify.md
+  playlist-watch.md
 README.md
 RELEASING.md
 LICENSE
