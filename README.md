@@ -4,11 +4,11 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 A product of [Million Pieces](https://millionpieces.nl).
 
-> **Note:** these skills have been tested on macOS. `text-to-playlist` has also been reported to work on Windows by one user (with `spotify_cli.exe` on the `PATH`); that has not been tested by the maintainer. `radio-dj`, `playlist-vennify` and `playlist-watch` are untested on Windows, and all four are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
+> **Note:** these skills have been tested on macOS. `text-to-playlist` has also been reported to work on Windows by one user (with `spotify_cli.exe` on the `PATH`); that has not been tested by the maintainer. `radio-dj`, `playlist-vennify`, `playlist-watch` and `birthday-number-ones` are untested on Windows, and all five are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
 
 ## Skills
 
-This repository currently contains **four skills**. More may follow.
+This repository currently contains **five skills**. More may follow.
 
 | Skill | What it does | Details |
 |-------|--------------|---------|
@@ -16,6 +16,7 @@ This repository currently contains **four skills**. More may follow.
 | [`radio-dj`](skills/radio-dj/SKILL.md) | Plays a playlist like a radio show: researches each artist and song on the web and speaks a short intro before every track. Optional OpenAI voice. | [docs/radio-dj.md](docs/radio-dj.md) |
 | [`playlist-vennify`](skills/playlist-vennify/SKILL.md) | Compares two or more playlists or albums like a Venn diagram (overlap, unique tracks, combined, in at least N) and adds the result to your queue or saves it as a new private playlist. | [docs/playlist-vennify.md](docs/playlist-vennify.md) |
 | [`playlist-watch`](skills/playlist-watch/SKILL.md) | Shows what changed in your playlists since you last looked (tracks added and removed). Watch all your playlists or only a few, then put the new tracks in your queue or a playlist. Keeps its snapshots in a data folder you can delete. | [docs/playlist-watch.md](docs/playlist-watch.md) |
+| [`birthday-number-ones`](skills/birthday-number-ones/SKILL.md) | Makes a "my life in songs" playlist: for every year since your birth, the song that was number one on your birthday in the charts you choose (Hot 100, UK, Dutch Top 40, alternative, country, or another Wikipedia list). Playlist and/or queue. | [docs/birthday-number-ones.md](docs/birthday-number-ones.md) |
 
 Example requests:
 
@@ -24,6 +25,7 @@ Example requests:
 - "What do *Summer 2025* and *Road trip* have in common?" (`playlist-vennify`)
 - "Mix the latest album of two artists and queue it shuffled" (`playlist-vennify`)
 - "What changed in my playlists since last week?" (`playlist-watch`)
+- "Make my life in songs from the Dutch Top 40, born 14 March 1980" (`birthday-number-ones`)
 
 The details of each skill (options, voices, safety and limits) are on its page in [`docs/`](docs/).
 
@@ -36,6 +38,7 @@ The details of each skill (options, voices, safety and limits) are on its page i
 - `text-to-playlist`: a way for the agent to read a web page, only if you give a URL. Any web-fetch or browser tool works. You can also paste the text instead.
 - `radio-dj`: Python 3.9 or newer, and a way for the agent to search the web.
 - `playlist-vennify`: Python 3.9 or newer. Playlists have to be in your Spotify library; albums don't.
+- `birthday-number-ones`: Python 3.9 or newer and an internet connection (it reads public Wikipedia pages; no account or key).
 - `playlist-watch`: Python 3.9 or newer. It stores its snapshots in a folder on your computer (see below). Public playlists outside your library work, given by link.
 
 ## Which tools can use it
@@ -62,12 +65,13 @@ If a tool cannot run commands on your computer, the skills cannot control Spotif
 | radio-dj | [radio-dj.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/radio-dj.zip) | `radio-dj` |
 | playlist-vennify | [playlist-vennify.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-vennify.zip) | `playlist-vennify` |
 | playlist-watch | [playlist-watch.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-watch.zip) | `playlist-watch` |
+| birthday-number-ones | [birthday-number-ones.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/birthday-number-ones.zip) | `birthday-number-ones` |
 
 All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
 
 If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skills are the folders under `skills/` inside it) or clone it with git.
 
-In the commands below, `<skill>` is `text-to-playlist`, `radio-dj`, `playlist-vennify` or `playlist-watch`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj`, `playlist-vennify` and `playlist-watch` are a `SKILL.md` and a `scripts/` folder.
+In the commands below, `<skill>` is `text-to-playlist`, `radio-dj`, `playlist-vennify`, `playlist-watch` or `birthday-number-ones`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj`, `playlist-vennify`, `playlist-watch` and `birthday-number-ones` are a `SKILL.md` and a `scripts/` folder.
 
 Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
 
@@ -116,7 +120,7 @@ There are two ways to call a skill. The second works in every tool.
 
 | Tool | How to call it |
 |------|----------------|
-| Claude Code | `/<skill>`, for example `/text-to-playlist`, `/radio-dj`, `/playlist-vennify` or `/playlist-watch` |
+| Claude Code | `/<skill>`, for example `/text-to-playlist`, `/radio-dj`, `/playlist-vennify`, `/playlist-watch` or `/birthday-number-ones` |
 | Codex (CLI and IDE extension) | `$<skill>`, or type `$` or `/skills` to pick it from a list |
 | Gemini CLI | no name syntax; the model picks the skill itself (see below) |
 
@@ -144,9 +148,10 @@ Put the options in the same message, or leave them out and the skill asks only w
 - `radio-dj` plays music, but only after you say go. It plays, pauses, changes the volume and puts the next track of the list at the front of your queue, with your own queued tracks behind it. See [its page](docs/radio-dj.md#safety-and-limits) for the details.
 - `playlist-vennify` only reads when it compares. It changes your queue or creates a private playlist only after you say yes (the skill is instructed to ask first), and the script checks that it acts on exactly the list you were shown. It never plays, pauses or skips.
 - `playlist-watch` only reads when it checks. It changes your queue or a playlist of yours only after you say yes (the skill is instructed to ask first), and an overwrite saves the old content first. It keeps a small data folder on your computer, see below. It never plays, pauses or skips.
+- `birthday-number-ones` is the only skill whose script reads the web by itself: it requests public pages of `en.wikipedia.org` (page titles only, never your date of birth) and keeps nothing on disk. It searches Spotify for the songs, and changes your queue or creates a private playlist only after you say yes (the skill is instructed to ask first, and the script checks that it acts on exactly the list you were shown). It never plays, pauses or skips.
 - `spotify_cli` cannot delete playlists. Delete test or unwanted playlists in the Spotify app.
 
-The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits), [radio-dj](docs/radio-dj.md#safety-and-limits) and [playlist-vennify](docs/playlist-vennify.md#safety-and-limits) and [playlist-watch](docs/playlist-watch.md#safety-and-limits).
+The full lists are on the pages of [text-to-playlist](docs/text-to-playlist.md#safety-and-limits), [radio-dj](docs/radio-dj.md#safety-and-limits) and [playlist-vennify](docs/playlist-vennify.md#safety-and-limits) and [playlist-watch](docs/playlist-watch.md#safety-and-limits) and [birthday-number-ones](docs/birthday-number-ones.md#safety-and-limits).
 
 ### Data kept by `playlist-watch`
 
@@ -170,11 +175,17 @@ skills/
     SKILL.md
     scripts/
       watch.py
+  birthday-number-ones/
+    SKILL.md
+    scripts/
+      numberones.py
+      charts.json
 docs/
   text-to-playlist.md
   radio-dj.md
   playlist-vennify.md
   playlist-watch.md
+  birthday-number-ones.md
 README.md
 RELEASING.md
 LICENSE

@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "note": "Wikipedia pages with the number-one songs of each chart. {year} and {decade} in a title are filled in from the year asked for. date_meaning: 'start' = the date is when the song reached number one; 'week_ending' = the date closes the chart week, so the song was number one from six days earlier.",
+  "charts": [
+    {
+      "id": "hot100",
+      "name": "Billboard Hot 100",
+      "aliases": ["billboard hot 100", "hot 100", "billboard", "us", "usa", "us charts", "american"],
+      "country": "United States",
+      "date_meaning": "start",
+      "pages": [
+        {"from": 1958, "to": 1969, "title": "List of Billboard Hot 100 number-one singles from 1958 to 1969"},
+        {"from": 1970, "to": 2099, "title": "List of Billboard Hot 100 number-one singles of the {decade}s"}
+      ]
+    },
+    {
+      "id": "uk",
+      "name": "UK Singles Chart",
+      "aliases": ["uk singles chart", "uk singles", "uk", "official singles chart", "british", "great britain"],
+      "country": "United Kingdom",
+      "date_meaning": "week_ending",
+      "pages": [
+        {"from": 1952, "to": 2099, "title": "List of UK singles chart number ones of the {decade}s"}
+      ]
+    },
+    {
+      "id": "top40nl",
+      "name": "Dutch Top 40",
+      "aliases": ["dutch top 40", "top 40", "top40", "nederlandse top 40", "nl", "netherlands", "dutch", "nederland"],
+      "country": "Netherlands",
+      "date_meaning": "start",
+      "pages": [
+        {"from": 1960, "to": 2099, "title": "List of Dutch Top 40 number-one singles of {year}"}
+      ]
+    },
+    {
+      "id": "alternative",
+      "name": "Billboard Alternative (Modern Rock Tracks, Alternative Songs, Alternative Airplay)",
+      "aliases": ["alternative", "alternative rock", "modern rock", "modern rock tracks", "alternative songs", "alternative airplay", "billboard alternative"],
+      "country": "United States",
+      "date_meaning": "start",
+      "pages": [
+        {"from": 1988, "to": 1989, "title": "List of Billboard Modern Rock Tracks number ones of the 1980s"},
+        {"from": 1990, "to": 1999, "title": "List of Billboard Modern Rock Tracks number ones of the 1990s"},
+        {"from": 2000, "to": 2009, "title": "List of Billboard Modern Rock Tracks number ones of the 2000s"},
+        {"from": 2010, "to": 2019, "title": "List of Billboard Alternative Songs number ones of the 2010s"},
+        {"from": 2020, "to": 2099, "title": "List of Billboard Alternative Airplay number ones of the 2020s"}
+      ]
+    },
+    {
+      "id": "country",
+      "name": "Billboard Hot Country Songs (Hot Country Singles, Hot Country Singles & Tracks)",
+      "aliases": ["country", "hot country", "hot country songs", "hot country singles", "billboard country", "country songs", "country chart"],
+      "country": "United States",
+      "date_meaning": "start",
+      "pages": [
+        {"from": 1962, "to": 1989, "title": "List of Hot Country Singles number ones of {year}"},
+        {"from": 1990, "to": 2004, "title": "List of Hot Country Singles & Tracks number ones of {year}"},
+        {"from": 2005, "to": 2011, "title": "List of Hot Country Songs number ones of {year}"},
+        {"from": 2012, "to": 2099, "title": "List of Billboard number-one country songs of {year}"}
+      ]
+    }
+  ]
+}
