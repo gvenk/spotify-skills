@@ -24,12 +24,15 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 
 TRACK_URI = re.compile(r"spotify:track:[A-Za-z0-9]{22}")
 PLAYLIST_URI = re.compile(r"spotify:playlist:[A-Za-z0-9]+")
 PLAYLIST_URL = re.compile(r"https://open\.spotify\.com/(?:intl-[a-z]+/)?playlist/([A-Za-z0-9]+)(?:[?#].*)?")
 PAGE = 100
+RETRY_WAIT = 1.0
+TRANSIENT = re.compile(r"connect|timed? ?out", re.I)
 MAX_OVERWRITE = 2000
 
 NOTICE = """This folder belongs to the playlist-watch skill (a helper for Spotify playlists).
@@ -107,6 +110,18 @@ def cli_json(*args):
         raise CliError("unexpected answer: " + out.strip()[:200])
 
 
+def read_json_cli(*args):
+    """Like cli_json, for reading playlists: a failed connection to the Spotify app is tried once more
+    (it sometimes drops a single call). The CLI says the same for a private playlist, so that costs one extra try."""
+    try:
+        return cli_json(*args)
+    except CliError as e:
+        if not TRANSIENT.search(str(e)):
+            raise
+        time.sleep(RETRY_WAIT)
+        return cli_json(*args)
+
+
 def library_playlists():
     """Every playlist in the user's library, also those inside folders (nested folders too).
     `library list` only returns the top level, so the folder hierarchy is read as well."""
@@ -173,11 +188,11 @@ def clean_tracks(raw):
 
 def read_live(uri):
     """The playlist as it is in Spotify now. Raises CliError when it cannot be read."""
-    d = cli_json("playlist", "get", uri)
+    d = read_json_cli("playlist", "get", uri)
     tracks = list(d.get("tracks", []))
     total = d.get("track_count")
     while isinstance(total, int) and len(tracks) < total and len(tracks) < 20000:
-        page = cli_json("playlist", "get", uri, "--limit", str(PAGE), "--offset", str(len(tracks))).get("tracks", [])
+        page = read_json_cli("playlist", "get", uri, "--limit", str(PAGE), "--offset", str(len(tracks))).get("tracks", [])
         if not page:
             break  # tracks that are no longer available are counted but not returned
         tracks.extend(page)

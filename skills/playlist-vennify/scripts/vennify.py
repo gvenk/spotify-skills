@@ -33,6 +33,8 @@ PLAYLIST_URL = re.compile(r"https://open\.spotify\.com/(?:intl-[a-z]+/)?playlist
 LABELS = "ABCDEFGHIJ"
 MAX_PLAYLISTS = len(LABELS)
 PAGE = 100
+RETRY_WAIT = 1.0
+TRANSIENT = re.compile(r"connect|timed? ?out", re.I)
 
 
 def die(msg, code=1):
@@ -164,14 +166,26 @@ def latest_album(artist):
     return uri, name, date
 
 
+def read_json_cli(*args):
+    """Like cli_json, for reading playlists: a failed connection to the Spotify app is tried once more
+    (it sometimes drops a single call). The CLI says the same for a private playlist, so that costs one extra try."""
+    try:
+        return cli_json(*args)
+    except CliError as e:
+        if not TRANSIENT.search(str(e)):
+            raise
+        time.sleep(RETRY_WAIT)
+        return cli_json(*args)
+
+
 def read_playlist(uri):
     try:
-        d = cli_json("playlist", "get", uri)
+        d = read_json_cli("playlist", "get", uri)
         tracks = list(d.get("tracks", []))
         total = d.get("track_count")
         # A long playlist could come back in part: ask for the rest page by page.
         while isinstance(total, int) and len(tracks) < total and len(tracks) < 20000:
-            page = cli_json("playlist", "get", uri, "--limit", str(PAGE), "--offset", str(len(tracks))).get("tracks", [])
+            page = read_json_cli("playlist", "get", uri, "--limit", str(PAGE), "--offset", str(len(tracks))).get("tracks", [])
             if not page:
                 break  # tracks that are no longer available are counted but not returned
             tracks.extend(page)
