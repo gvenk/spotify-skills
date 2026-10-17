@@ -114,7 +114,7 @@ python3 "$WATCH" merge --selection <folder>/check.json [--from "<playlist>" ...]
 python3 "$WATCH" merge --selection <folder>/check.json --to playlist --target "<playlist>" --mode append
 ```
 
-The plan lists the sources, the number of tracks, the tracks (`sample`), how many were skipped because they are already in the target, and, for an overwrite, **how many tracks will be removed from which playlist**. For an overwrite say this explicitly and ask for a clear yes naming that playlist; the previous contents are saved first in the data folder's `backups/` (a JSON file with the tracks, so the user can restore it by hand).
+The plan lists the sources, the number of tracks, the tracks (`sample`), how many were skipped because they are already in the target, and, for an overwrite, **how many tracks will be removed from which playlist**. For an overwrite say this explicitly and ask for a clear yes naming that playlist; the previous contents are saved first in the data folder's `backups/` (a JSON file with every entry of the playlist, episodes and local files included, so the user can restore it by hand). If Spotify reports entries it does not return (tracks no longer available), the script refuses the overwrite because it could not be backed up completely: tell the user, and do not work around it. The confirmation code also covers what will be removed, so a target that changed after the plan needs a new plan.
 
 Only after the user said yes to exactly this plan, run the same command again with `--confirm <confirm_code>` (and for an overwrite also `--confirm-overwrite <the target's URI>`). The code ties the action to the exact tracks, destination and mode, so anything that changes needs a new plan and a new yes. It is not a secret and it is not the user's consent: it does not stop a caller that ignores these instructions.
 
@@ -128,7 +128,7 @@ python3 "$WATCH" forget --all                              # says what it would 
 python3 "$WATCH" forget --all --yes [--include-backups]    # deletes the watch list and snapshots
 ```
 
-`forget --all` only lists what it would delete until `--yes` is added; ask the user first. It keeps the overwrite backups unless `--include-backups` is given (they are the only way to restore an overwritten playlist): ask separately. It deletes only the files the script itself made and leaves anything else in the folder. When the user removes the skill, offer `forget --all --yes` so no data is left behind.
+`forget --all` only lists what it would delete until `--yes` is added; ask the user first. It keeps the overwrite backups unless `--include-backups` is given (they are the only way to restore an overwritten playlist): ask separately. It deletes only the files the script itself made and leaves anything else in the folder alone, a foreign `README.txt` or `watch.json` too (listed as `left_alone_not_ours`). When the user removes the skill, offer `forget --all --yes` so no data is left behind.
 
 ### 6. Report
 

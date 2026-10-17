@@ -63,6 +63,7 @@ Rules:
 - The target must be **your** playlist, and it must not be one of the source playlists or one on your explicit watch list. A playlist the skill merges into is not watched afterwards, so the skill's own edits don't show up as someone else's changes.
 - Every merge starts as a plan: you see the sources, the number of tracks, the tracks, what is skipped and what would be removed. Nothing changes until you say yes.
 - After a successful merge the snapshots of the source playlists move forward. If the merge fails, they stay where they were.
+- An overwrite counts and backs up every entry of the target. If Spotify reports more entries than it returns (tracks that are no longer available), the overwrite is refused, because the old content could not be saved completely. The confirmation code also covers what will be removed: if the target changes after you saw the plan, you get a new plan to confirm.
 - More than 200 tracks into a playlist needs your agreement; overwriting a playlist of more than 2000 tracks isn't supported.
 
 ## Your data and how to remove it
@@ -82,11 +83,11 @@ It contains:
 | `README.txt` | A short notice about what the folder is and how to remove it. |
 | `watch.json` | What you watch, and the playlists you merged into. |
 | `snapshots/` | One file per watched playlist: its track list at your last confirmation. |
-| `backups/` | The old content of a playlist, saved just before an overwrite. |
+| `backups/` | The old content of a playlist, saved just before an overwrite: every entry, also episodes, local files and duplicates, so nothing that is removed is missing from it. A backup is never replaced by a later one. |
 
 It holds no passwords, keys or Spotify login, and nothing is sent anywhere. The folder and its files can be read only by you.
 
-**When you remove the skill, remove its data too.** Ask the skill to *forget everything*: `forget --all` says what it would delete, and after your yes it deletes the watch list and snapshots. The overwrite backups are kept unless you also say so (they are your only way back after an overwrite). Or delete the folder yourself, for example `rm -r ~/.local/share/playlist-watch`.
+**When you remove the skill, remove its data too.** Ask the skill to *forget everything*: `forget --all` says what it would delete, and after your yes it deletes the watch list and snapshots, but only files it recognises as its own: a `README.txt` or `watch.json` that it didn't write is left alone and reported. The overwrite backups are kept unless you also say so (they are your only way back after an overwrite). Or delete the folder yourself, for example `rm -r ~/.local/share/playlist-watch`.
 
 ## Safety and limits
 

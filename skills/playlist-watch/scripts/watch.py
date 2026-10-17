@@ -197,9 +197,15 @@ def read_live(uri):
             break  # tracks that are no longer available are counted but not returned
         tracks.extend(page)
     clean, skipped, dups = clean_tracks(tracks)
+    # every entry as Spotify returned it (episodes, local files and duplicates too): an overwrite has to
+    # count and back up exactly these, not the cleaned list
+    entries = [{"uri": clean_text(t.get("uri", ""), 200), "type": clean_text(t.get("type", ""), 20), "name": clean_text(t.get("name", "")),
+                "artists": [clean_text(a) for a in t.get("artists", [])][:10], "album": clean_text(t.get("album", ""))}
+               for t in tracks if isinstance(t, dict)]
     return {"uri": uri, "name": clean_text(d.get("name") or uri), "description": clean_text(d.get("description") or ""),
             "owner": clean_text(d.get("owner") or ""), "is_owned": bool(d.get("is_owned")),
-            "tracks": clean, "skipped_not_tracks": skipped, "duplicates_in_playlist": dups}
+            "tracks": clean, "skipped_not_tracks": skipped, "duplicates_in_playlist": dups,
+            "entries": entries, "declared_count": total if isinstance(total, int) else None}
 
 
 # ---------------------------------------------------------------- the data folder
@@ -557,6 +563,22 @@ def snapshots_sorted(snaps):
     return sorted(snaps, key=lambda s: s["name"].casefold())
 
 
+def is_ours(path, name):
+    """A file in the data folder is deleted only when it is recognisably the skill's own, in case the folder is shared."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read(200000)
+    except OSError:
+        return False
+    if name == "README.txt":
+        return text == NOTICE
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and "all_library" in data and "selected" in data
+
+
 def cmd_forget(args):
     d = data_dir()
     if args.all:
@@ -567,10 +589,14 @@ def cmd_forget(args):
                 continue
             if os.path.isdir(folder):
                 files += [os.path.join(folder, f) for f in sorted(os.listdir(folder)) if re.fullmatch(pattern, f)]
-        files += [os.path.join(d, f) for f in ("watch.json", "README.txt") if os.path.exists(os.path.join(d, f))]
+        left_alone = []
+        for f in ("watch.json", "README.txt"):
+            path = os.path.join(d, f)
+            if os.path.exists(path):
+                (files if is_ours(path, f) else left_alone).append(path)
         keep_backups = not args.include_backups and os.path.isdir(os.path.join(d, "backups")) and os.listdir(os.path.join(d, "backups"))
         if not args.yes:
-            say({"would_delete": len(files), "folder": d, "backups_kept": bool(keep_backups),
+            say({"would_delete": len(files), "folder": d, "backups_kept": bool(keep_backups), "left_alone_not_ours": left_alone,
                  "next": "run again with --yes to delete these files" + ("; add --include-backups to delete the backups too" if keep_backups else "")})
             return
         for f in files:
@@ -583,7 +609,7 @@ def cmd_forget(args):
                 os.rmdir(os.path.join(d, sub) if sub else d)
             except OSError:
                 pass
-        say({"deleted": len(files), "folder": d, "backups_kept": bool(keep_backups)})
+        say({"deleted": len(files), "folder": d, "backups_kept": bool(keep_backups), "left_alone_not_ours": left_alone})
         return
     if not args.ref:
         die("Name a playlist to forget, or use --all.")
@@ -639,6 +665,15 @@ def run_batch(ops):
         except ValueError:
             continue
     return results
+
+
+def unique_backup_path(folder, stamp, playlist_id):
+    """A backup never replaces an earlier one, even when two overwrites fall in the same second."""
+    n, name = 1, "%s-%s.json" % (stamp, playlist_id)
+    while os.path.exists(os.path.join(folder, name)):
+        n += 1
+        name = "%s-%d-%s.json" % (stamp, n, playlist_id)
+    return os.path.join(folder, name)
 
 
 def add_in_chunks(playlist_uri, uris):
@@ -699,9 +734,14 @@ def cmd_merge(args):
                 skipped_existing = sum(1 for t in tracks if t["uri"] in have)
                 tracks = [t for t in tracks if t["uri"] not in have]
             else:
-                will_remove = len(target["tracks"])
+                will_remove = len(target["entries"])
+                if target["declared_count"] != will_remove:
+                    die("%r has %s entries but Spotify returned %d of them (some may be unavailable), so the old content cannot be "
+                        "backed up completely. The overwrite is refused." % (target["name"], target["declared_count"], will_remove), 4)
                 if will_remove > MAX_OVERWRITE:
                     die("Overwriting a playlist of %d tracks is not supported (limit %d)." % (will_remove, MAX_OVERWRITE), 4)
+                # the code covers what is removed, so a target that changed after the plan needs a new plan and a new yes
+                plan.update(will_remove=will_remove, target_state=uris_hash(target["entries"]))
     plan["tracks"] = [t["uri"] for t in tracks]
     code = confirm_code(plan)
     summary = {"to": args.to, "mode": plan.get("mode"), "target": plan.get("target"), "new_name": plan.get("new_name"),
@@ -752,11 +792,11 @@ def cmd_merge(args):
     else:
         backup = None
         if args.mode == "overwrite":
-            backup = os.path.join(data_dir(), "backups", "%s-%s.json" % (now().replace(":", ""), plan["target"].split(":")[2]))
-            write_json(backup, {"uri": target["uri"], "name": target["name"], "saved_at": now(), "tracks": target["tracks"]})
+            backup = unique_backup_path(os.path.join(data_dir(), "backups"), now().replace(":", ""), plan["target"].split(":")[2])
+            write_json(backup, {"uri": target["uri"], "name": target["name"], "saved_at": now(), "entries": target["entries"]})
         try:
-            if args.mode == "overwrite" and target["tracks"]:
-                n = len(target["tracks"])
+            if args.mode == "overwrite" and target["entries"]:
+                n = len(target["entries"])
                 res = run_batch([{"op": "playlist_remove", "playlist_uri": plan["target"], "positions": list(range(n))}])
                 if not res or not res[0].get("ok", True):
                     die("Spotify refused to empty the playlist: %s" % (res[:1],), 8)
@@ -766,6 +806,8 @@ def cmd_merge(args):
             die("Spotify refused: %s.%s" % (e, " The previous contents are saved in %s." % backup if backup else ""), 8)
         result = {"target": plan["target"], "mode": args.mode, "tracks_added": len(uris), "track_count_in_spotify": count,
                   "backup": backup, "skipped_already_in_target": skipped_existing}
+        if args.mode == "overwrite" and count != len(uris):
+            result["warning"] = "Spotify reports %s tracks in the playlist, expected %d. Check it, and use the backup if needed." % (count, len(uris))
         register_target(w, plan["target"])
     result["baseline_moved_for"] = [e["name"] for e in sources if accept(e) == "baseline moved"]
     say(result)
