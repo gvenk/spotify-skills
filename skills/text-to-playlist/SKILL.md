@@ -129,7 +129,7 @@ If the user names a Spotify playlist folder ("put it in my Newsletters folder"),
 All commands below use `$SPOTIFY_CLI_PATH`. Resolve it once before starting, unless it is already set:
 
 - **macOS:** `/Applications/Spotify.app/Contents/MacOS/spotify_cli`
-- **Windows (untested):** `spotify_cli.exe`, expected to be on the `PATH` (so the bare name works). If it is not found, check with `where spotify_cli` and ask the user for the install location.
+- **Windows (reported to work by one user, not tested by the maintainer):** `spotify_cli.exe`, expected to be on the `PATH` (so the bare name works). If it is not found, check with `where spotify_cli` and ask the user for the install location.
 
 ```bash
 # macOS
