@@ -73,7 +73,7 @@ If no readable page exists, say so. Do not fill the gap from memory.
 
 ### 3. Build the list
 
-Make a private folder (`mktemp -d`) and run, with one `--chart` for every built-in chart:
+Make a private folder (`mktemp -d`; delete it when you are done with it, also if the user chooses nothing or stops early) and run, with one `--chart` for every built-in chart:
 
 ```bash
 python3 "$NUMBERONES" build --birth <YYYY-MM-DD> --chart hot100 --chart top40nl --out <private folder>/selection.json

@@ -56,7 +56,7 @@ The default is today on the user's computer. If they name another day ("4 May", 
 
 ### 2. Discover
 
-Make a private folder (`mktemp -d`) and run:
+Make a private folder (`mktemp -d`; delete it when you are done with it, also if the user chooses nothing or stops early) and run:
 
 ```bash
 python3 "$OTD" discover [--date YYYY-MM-DD] --out <private folder>/candidates.json

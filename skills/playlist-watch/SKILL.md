@@ -73,7 +73,7 @@ Reading many playlists takes a while (about 25 seconds for 90 playlists, 40 for 
 
 ### 2. Check what changed
 
-Make a private folder (`mktemp -d`) and run:
+Make a private folder (`mktemp -d`; delete it when you are done with it, also if the user chooses nothing or stops early) and run:
 
 ```bash
 python3 "$WATCH" check --out <private folder>/check.json

@@ -74,7 +74,7 @@ Order: as in the playlists (default), `--order shuffle`, or `--order interleave`
 
 ### 3. Run it
 
-Make a private folder (`mktemp -d`) and run:
+Make a private folder (`mktemp -d`; delete it when you are done with it, also if the user chooses nothing or stops early) and run:
 
 ```bash
 python3 "$VENN" compare --playlist "<A>" --playlist "<B>" [--playlist "<C>" ...] [--latest-album "<artist>" ...] --select overlap --out <private folder>/selection.json
