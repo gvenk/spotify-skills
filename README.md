@@ -110,7 +110,7 @@ cp -R skills/<skill> ~/.gemini/skills/
 
 Check that it loaded with `/skills list` in a session. Add `--scope workspace` to install it for one project only.
 
-**Two shortcuts** (macOS and Linux; the examples use the Claude Code folder, use `~/.codex/skills` or `~/.gemini/skills` for the others):
+**Three shortcuts.** The first two are for macOS and Linux; the examples use the Claude Code folder, use `~/.codex/skills` or `~/.gemini/skills` for the others.
 
 ```bash
 # 1. download and unzip in one go; run it again to update
@@ -121,9 +121,14 @@ unzip -o /tmp/<skill>.zip -d ~/.claude/skills/
 git clone https://github.com/gvenk/spotify-skills.git ~/spotify-skills
 ln -s ~/spotify-skills/skills/<skill> ~/.claude/skills/<skill>
 git -C ~/spotify-skills pull
+
+# 3. with the skills command line tool (needs Node 22.20 or newer)
+npx skills add gvenk/spotify-skills --skill <skill> -a claude-code
 ```
 
 The linked skills follow the `main` branch, so you get the newest, unreleased version. The release zips are the tested versions. On Windows, links need developer mode or an administrator; copy the folder instead (not tested).
+
+The third route uses [`skills`](https://github.com/vercel-labs/skills), a tool by Vercel (not part of this repository) that installs skills for many agents. It was tested with Claude Code: it lists all six skills and copies the whole skill, including `scripts/`. Without `-g` it installs into the current project (`.claude/skills`) and leaves a `skills-lock.json` there; `-g` should install for all your projects (not tested). It sends anonymous usage data unless you set `DISABLE_TELEMETRY=1`. `npx skills update` and `npx skills remove` update and remove skills (not tested).
 
 **Not the Claude chat app.** Do not use the **Upload a skill** button in Claude.ai or the desktop chat (Customize > Skills). Skills there run in a remote sandbox, not on your computer, so they cannot reach the Spotify app and the skills will not work.
 
