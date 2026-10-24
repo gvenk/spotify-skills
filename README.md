@@ -4,6 +4,8 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 A product of [Million Pieces](https://millionpieces.nl).
 
+**Quick start:** unzip the skill you want (zips under [Install](#install)) into `~/.claude/skills/` and ask your agent for it, for example "Surprise me with music for today". You need the Spotify desktop app and an agent that can run commands on your computer, see [Which tools can use it](#which-tools-can-use-it). Other tools and update routes are under Install.
+
 > **Note:** these skills have been tested on macOS. Of the six, only `text-to-playlist` has been tried on Windows: it was reported to work by one user (with `spotify_cli.exe` on the `PATH`); the maintainer has not tested that. `radio-dj`, `playlist-vennify`, `playlist-watch`, `birthday-number-ones` and `on-this-day` are untested on Windows, and all six are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
 
 ## Skills
