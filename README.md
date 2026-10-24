@@ -4,7 +4,7 @@ Agent skills that work with the Spotify desktop app through its command line too
 
 A product of [Million Pieces](https://millionpieces.nl).
 
-> **Note:** these skills have been tested on macOS. `text-to-playlist` has also been reported to work on Windows by one user (with `spotify_cli.exe` on the `PATH`); that has not been tested by the maintainer. `radio-dj`, `playlist-vennify`, `playlist-watch` and `birthday-number-ones` are untested on Windows, and all five are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
+> **Note:** these skills have been tested on macOS. Of the six, only `text-to-playlist` has been tried on Windows: it was reported to work by one user (with `spotify_cli.exe` on the `PATH`); the maintainer has not tested that. `radio-dj`, `playlist-vennify`, `playlist-watch`, `birthday-number-ones` and `on-this-day` are untested on Windows, and all six are untested on Linux. Things that may need changes are, for example, the location of `spotify_cli`.
 
 ## Skills
 
@@ -60,81 +60,47 @@ If a tool cannot run commands on your computer, the skills cannot control Spotif
 
 ## Install
 
-**Download.** The easiest way is the zip with only the skill, from the latest release:
+Download the zip of the skill you want from the latest release ([all versions](https://github.com/gvenk/spotify-skills/releases)). Each zip holds one folder, named after the skill:
 
-| Skill | Download | Unzips to |
-|-------|----------|-----------|
-| text-to-playlist | [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip) | `text-to-playlist` |
-| radio-dj | [radio-dj.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/radio-dj.zip) | `radio-dj` |
-| playlist-vennify | [playlist-vennify.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-vennify.zip) | `playlist-vennify` |
-| playlist-watch | [playlist-watch.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-watch.zip) | `playlist-watch` |
-| birthday-number-ones | [birthday-number-ones.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/birthday-number-ones.zip) | `birthday-number-ones` |
-| on-this-day | [on-this-day.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/on-this-day.zip) | `on-this-day` |
+| Skill | Download |
+|-------|----------|
+| text-to-playlist | [text-to-playlist.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/text-to-playlist.zip) |
+| radio-dj | [radio-dj.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/radio-dj.zip) |
+| playlist-vennify | [playlist-vennify.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-vennify.zip) |
+| playlist-watch | [playlist-watch.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/playlist-watch.zip) |
+| birthday-number-ones | [birthday-number-ones.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/birthday-number-ones.zip) |
+| on-this-day | [on-this-day.zip](https://github.com/gvenk/spotify-skills/releases/latest/download/on-this-day.zip) |
 
-All versions are on the [releases page](https://github.com/gvenk/spotify-skills/releases).
+Then unzip it, or copy the whole skill folder from `skills/` in this repository, into your tool's skills folder. Copy the whole folder, not only `SKILL.md`: all skills except `text-to-playlist` also have a `scripts/` folder.
 
-If you want the newest, unreleased version, download the whole repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip) (the skills are the folders under `skills/` inside it) or clone it with git.
+| Tool | Skills folder | Notes |
+|------|---------------|-------|
+| Claude Code | `~/.claude/skills/` (all projects) or `<project>/.claude/skills/` | |
+| Codex ([docs](https://learn.chatgpt.com/docs/build-skills)) | `~/.codex/skills/` (`$CODEX_HOME/skills`) | Or run `$skill-installer` in a session. Restart Codex if it does not see the skill. |
+| Gemini CLI ([docs](https://geminicli.com/docs/cli/skills/)) | `~/.gemini/skills/` | Or `gemini skills install ./skills/<skill>` (add `--scope workspace` for one project). Check with `/skills list`. |
+| Other tools | see their documentation ("agent skills") | |
 
-In the commands below, `<skill>` is `text-to-playlist`, `radio-dj`, `playlist-vennify`, `playlist-watch`, `birthday-number-ones` or `on-this-day`, and `skills/<skill>` is the folder inside the repository. If you unzipped a release zip, use just `<skill>`. Copy the whole folder: `text-to-playlist` is only a `SKILL.md`, `radio-dj`, `playlist-vennify`, `playlist-watch`, `birthday-number-ones` and `on-this-day` are a `SKILL.md` and a `scripts/` folder.
+Claude Code and Codex have been tested with this repository, Gemini CLI has not. The folders follow each tool's documentation and can change.
 
-Copy the skill folder (it contains `SKILL.md`) into your tool's skills directory. Use a link instead of a copy if you want updates from this repository to apply without copying again.
-
-**Claude Code**
-
-```bash
-# for all your projects
-cp -R skills/<skill> ~/.claude/skills/
-
-# or for one project
-cp -R skills/<skill> <your-project>/.claude/skills/
-```
-
-**Codex** ([documentation](https://learn.chatgpt.com/docs/build-skills))
+**Shortcuts** (`<skill>` is the skill's name; the examples use the Claude Code folder):
 
 ```bash
-# the skills folder is $CODEX_HOME/skills, usually ~/.codex/skills
-cp -R skills/<skill> ~/.codex/skills/
-```
-
-You can also run `$skill-installer` inside a Codex session. Restart Codex if it does not see the new skill.
-
-**Gemini CLI** ([documentation](https://geminicli.com/docs/cli/skills/))
-
-```bash
-# install from a local folder
-gemini skills install ./skills/<skill>
-
-# or copy it by hand
-cp -R skills/<skill> ~/.gemini/skills/
-```
-
-Check that it loaded with `/skills list` in a session. Add `--scope workspace` to install it for one project only.
-
-**Three shortcuts.** The first two are for macOS and Linux; the examples use the Claude Code folder, use `~/.codex/skills` or `~/.gemini/skills` for the others.
-
-```bash
-# 1. download and unzip in one go; run it again to update
+# download and unzip in one go (macOS, Linux); run it again to update
 curl -L -o /tmp/<skill>.zip https://github.com/gvenk/spotify-skills/releases/latest/download/<skill>.zip
 unzip -o /tmp/<skill>.zip -d ~/.claude/skills/
 
-# 2. clone once and link, then update every linked skill with git pull
+# or clone once and link; update every linked skill with git pull
 git clone https://github.com/gvenk/spotify-skills.git ~/spotify-skills
 ln -s ~/spotify-skills/skills/<skill> ~/.claude/skills/<skill>
 git -C ~/spotify-skills pull
 
-# 3. with the skills command line tool (needs Node 22.20 or newer)
+# or with the skills command line tool (needs Node 22.20 or newer)
 npx skills add gvenk/spotify-skills --skill <skill> -a claude-code
 ```
 
-The linked skills follow the `main` branch, so you get the newest, unreleased version. The release zips are the tested versions. On Windows, links need developer mode or an administrator; copy the folder instead (not tested).
-
-The third route uses [`skills`](https://github.com/vercel-labs/skills), a tool by Vercel (not part of this repository) that installs skills for many agents. It was tested with Claude Code: it lists all six skills and copies the whole skill, including `scripts/`. Without `-g` it installs into the current project (`.claude/skills`) and leaves a `skills-lock.json` there; `-g` should install for all your projects (not tested). It sends anonymous usage data unless you set `DISABLE_TELEMETRY=1`. `npx skills update` and `npx skills remove` update and remove skills (not tested).
-
-**Not the Claude chat app.** Do not use the **Upload a skill** button in Claude.ai or the desktop chat (Customize > Skills). Skills there run in a remote sandbox, not on your computer, so they cannot reach the Spotify app and the skills will not work.
-
-**Other tools.** Skills in the `SKILL.md` format are also supported by other tools, each with its own folder. Look up "agent skills" in the tool's documentation and copy the skill folder there.
-
-The commands above follow each tool's documentation and the current layout of its skills folder, which can change. Claude Code and Codex have been tested with this repository. Gemini CLI has not.
+- Linked skills follow the `main` branch, the newest and unreleased version; the release zips are the tested ones. You can also download the repository as [main.zip](https://github.com/gvenk/spotify-skills/archive/refs/heads/main.zip). On Windows, links need developer mode or an administrator; copy the folder instead (not tested).
+- [`skills`](https://github.com/vercel-labs/skills) is a tool by Vercel, not part of this repository. Tested with Claude Code: it lists all six skills and copies the whole skill, including `scripts/`. Without `-g` it installs into the current project and leaves a `skills-lock.json` there; `-g` should install for all your projects, and `npx skills update` and `npx skills remove` should update and remove (all three not tested). It sends anonymous usage data unless you set `DISABLE_TELEMETRY=1`.
+- **Not the Claude chat app.** Do not use the **Upload a skill** button in Claude.ai or the desktop chat (Customize > Skills). Skills there run in a remote sandbox, not on your computer, so they cannot reach the Spotify app.
 
 If `spotify_cli` is not at the default path, set `SPOTIFY_CLI_PATH` to its location before starting the tool.
 
